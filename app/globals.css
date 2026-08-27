@@ -1,0 +1,250 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* ==========================================================================
+   Heizen Planning Gap Intelligence — semantic design tokens
+   Enterprise planning aesthetic: neutral surfaces, subtle borders, strong
+   typography, restrained accent use. See docs/ui-principles.md.
+
+   Two color dimensions are kept structurally separate and must never be
+   reused for each other:
+   - RISK tokens (positive/warning/critical) are reserved for status/severity
+     (badges, exception flags, risk bands). They never label a data series.
+   - PLANNING STATE tokens (formal/validated/inferred/scenario/historical/
+     unknown) are the categorical palette for data provenance in charts and
+     tables — which layer of a stacked view is official vs. AI-inferred vs.
+     planner scenario vs. historical actual.
+   ========================================================================== */
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* ---- UI surfaces ---- */
+  --background: oklch(0.985 0.002 247);
+  --surface: oklch(1 0 0);
+  --surface-elevated: oklch(1 0 0);
+  --surface-sunken: oklch(0.97 0.003 247);
+  --border: oklch(0.9 0.004 247);
+  --border-strong: oklch(0.82 0.006 247);
+  --ring: oklch(0.55 0.14 255);
+
+  /* ---- Text ---- */
+  --text-primary: oklch(0.17 0.01 255);
+  --text-secondary: oklch(0.42 0.015 255);
+  --text-muted: oklch(0.58 0.012 255);
+  --text-on-accent: oklch(0.99 0 0);
+
+  /* ---- Accent (restrained; UI chrome only, not data series) ---- */
+  --accent: oklch(0.5 0.15 255);
+  --accent-soft: oklch(0.94 0.03 255);
+
+  /* ---- Risk / severity (reserved — status only, never a data series) ---- */
+  --risk-positive: oklch(0.6 0.13 155);
+  --risk-positive-soft: oklch(0.94 0.045 155);
+  --risk-warning: oklch(0.72 0.15 75);
+  --risk-warning-soft: oklch(0.94 0.06 75);
+  --risk-critical: oklch(0.58 0.19 25);
+  --risk-critical-soft: oklch(0.94 0.05 25);
+
+  /* ---- Planning state (categorical — data provenance in charts/tables) ---- */
+  --state-formal: oklch(0.32 0.02 255);
+  --state-formal-soft: oklch(0.92 0.006 255);
+  --state-validated: oklch(0.52 0.14 250);
+  --state-validated-soft: oklch(0.93 0.035 250);
+  --state-inferred: oklch(0.55 0.16 300);
+  --state-inferred-soft: oklch(0.93 0.04 300);
+  --state-scenario: oklch(0.62 0.11 195);
+  --state-scenario-soft: oklch(0.93 0.035 195);
+  --state-historical: oklch(0.62 0.006 255);
+  --state-historical-soft: oklch(0.94 0.003 255);
+  --state-unknown: oklch(0.75 0.004 255);
+  --state-unknown-soft: oklch(0.95 0.002 255);
+
+  /* ---- Semantic aliases (exact vocabulary from docs/ui-principles.md) ---- */
+  --surface-raised: var(--surface-elevated);
+  --border-subtle: var(--border);
+
+  /* ---- Interaction (hover/selected/disabled — never inline-guessed) ---- */
+  --interaction-hover: var(--surface-sunken);
+  --interaction-selected: var(--accent-soft);
+  --interaction-selected-border: var(--accent);
+  --interaction-disabled-opacity: 0.5;
+
+  /* ---- Radii ---- */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+
+  /* ---- Table density ---- */
+  --row-height-compact: 30px;
+  --row-height-default: 36px;
+  --row-height-relaxed: 44px;
+
+  /* ---- Chart label style (shared across AG Charts + hand-built SVG charts) ---- */
+  --chart-label-size: 11px;
+  --chart-label-color: var(--text-muted);
+  --chart-gridline-color: var(--border);
+}
+
+.dark {
+  --background: oklch(0.16 0.008 255);
+  --surface: oklch(0.2 0.008 255);
+  --surface-elevated: oklch(0.23 0.009 255);
+  --surface-sunken: oklch(0.13 0.007 255);
+  --border: oklch(0.3 0.008 255);
+  --border-strong: oklch(0.38 0.01 255);
+  --ring: oklch(0.65 0.14 255);
+
+  --text-primary: oklch(0.96 0.003 255);
+  --text-secondary: oklch(0.78 0.008 255);
+  --text-muted: oklch(0.58 0.01 255);
+  --text-on-accent: oklch(0.99 0 0);
+
+  --accent: oklch(0.68 0.14 255);
+  --accent-soft: oklch(0.28 0.05 255);
+
+  --risk-positive: oklch(0.72 0.15 155);
+  --risk-positive-soft: oklch(0.28 0.05 155);
+  --risk-warning: oklch(0.78 0.15 75);
+  --risk-warning-soft: oklch(0.3 0.06 75);
+  --risk-critical: oklch(0.68 0.18 25);
+  --risk-critical-soft: oklch(0.3 0.07 25);
+
+  --state-formal: oklch(0.85 0.01 255);
+  --state-formal-soft: oklch(0.3 0.008 255);
+  --state-validated: oklch(0.7 0.13 250);
+  --state-validated-soft: oklch(0.3 0.05 250);
+  --state-inferred: oklch(0.72 0.15 300);
+  --state-inferred-soft: oklch(0.3 0.06 300);
+  --state-scenario: oklch(0.74 0.1 195);
+  --state-scenario-soft: oklch(0.3 0.05 195);
+  --state-historical: oklch(0.55 0.006 255);
+  --state-historical-soft: oklch(0.26 0.006 255);
+  --state-unknown: oklch(0.45 0.004 255);
+  --state-unknown-soft: oklch(0.24 0.004 255);
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", monospace;
+
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-ring: var(--ring);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-on-accent: var(--text-on-accent);
+
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+
+  --color-risk-positive: var(--risk-positive);
+  --color-risk-positive-soft: var(--risk-positive-soft);
+  --color-risk-warning: var(--risk-warning);
+  --color-risk-warning-soft: var(--risk-warning-soft);
+  --color-risk-critical: var(--risk-critical);
+  --color-risk-critical-soft: var(--risk-critical-soft);
+
+  --color-state-formal: var(--state-formal);
+  --color-state-formal-soft: var(--state-formal-soft);
+  --color-state-validated: var(--state-validated);
+  --color-state-validated-soft: var(--state-validated-soft);
+  --color-state-inferred: var(--state-inferred);
+  --color-state-inferred-soft: var(--state-inferred-soft);
+  --color-state-scenario: var(--state-scenario);
+  --color-state-scenario-soft: var(--state-scenario-soft);
+  --color-state-historical: var(--state-historical);
+  --color-state-historical-soft: var(--state-historical-soft);
+  --color-state-unknown: var(--state-unknown);
+  --color-state-unknown-soft: var(--state-unknown-soft);
+
+  --color-surface-raised: var(--surface-raised);
+  --color-border-subtle: var(--border-subtle);
+  --color-interaction-hover: var(--interaction-hover);
+  --color-interaction-selected: var(--interaction-selected);
+  --color-interaction-selected-border: var(--interaction-selected-border);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+
+  /* shadcn/ui compatibility aliases */
+  --color-background: var(--background);
+  --color-foreground: var(--text-primary);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--text-primary);
+  --color-popover: var(--surface-elevated);
+  --color-popover-foreground: var(--text-primary);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--text-on-accent);
+  --color-secondary: var(--surface-sunken);
+  --color-secondary-foreground: var(--text-primary);
+  --color-muted: var(--surface-sunken);
+  --color-muted-foreground: var(--text-muted);
+  --color-accent-foreground: var(--text-on-accent);
+  --color-destructive: var(--risk-critical);
+  --color-destructive-foreground: var(--text-on-accent);
+  --color-input: var(--border);
+  --radius: var(--radius-md);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+    outline-color: var(--ring);
+  }
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    background: var(--background);
+    color: var(--text-primary);
+    font-feature-settings: "tnum" 1, "cv11" 1;
+  }
+  ::selection {
+    background: var(--accent-soft);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 1px;
+  }
+}
+
+@layer utilities {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+}
+
+/* ---- AG Grid: mapped onto our own tokens, not the default AG theme ---- */
+.ag-theme-heizen {
+  --ag-background-color: var(--surface);
+  --ag-foreground-color: var(--text-primary);
+  --ag-header-background-color: var(--surface-sunken);
+  --ag-header-foreground-color: var(--text-muted);
+  --ag-border-color: var(--border);
+  --ag-row-border-color: var(--border);
+  --ag-row-hover-color: var(--interaction-hover);
+  --ag-selected-row-background-color: var(--interaction-selected);
+  --ag-font-family: var(--font-sans);
+  --ag-font-size: 12.5px;
+  --ag-header-font-size: 11px;
+  --ag-header-column-separator-display: none;
+  --ag-cell-horizontal-padding: 12px;
+  --ag-row-height: 38px;
+  --ag-header-height: 34px;
+  --ag-wrapper-border-radius: var(--radius-md);
+  --ag-input-focus-border-color: var(--ring);
+}

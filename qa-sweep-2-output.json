@@ -1,0 +1,72 @@
+[
+  {
+    "slug": "overview",
+    "path": "/overview",
+    "htmlClass": "dark",
+    "consoleErrors": []
+  },
+  {
+    "slug": "gaps",
+    "path": "/gaps",
+    "htmlClass": "dark",
+    "consoleErrors": []
+  },
+  {
+    "slug": "gaps-demand-events",
+    "path": "/gaps/demand-events",
+    "htmlClass": "dark",
+    "consoleErrors": []
+  },
+  {
+    "slug": "gaps-planning-assumptions",
+    "path": "/gaps/planning-assumptions",
+    "htmlClass": "dark",
+    "consoleErrors": []
+  },
+  {
+    "slug": "gaps-product-readiness",
+    "path": "/gaps/product-readiness",
+    "htmlClass": "dark",
+    "consoleErrors": []
+  },
+  {
+    "slug": "gaps-representation",
+    "path": "/gaps/representation",
+    "htmlClass": "dark",
+    "consoleErrors": []
+  },
+  {
+    "slug": "gap-halloween",
+    "path": "/gaps/halloween-2027",
+    "htmlClass": "dark",
+    "consoleErrors": []
+  },
+  {
+    "slug": "gap-printed-film",
+    "path": "/gaps/printed-film-lead-time",
+    "htmlClass": "dark",
+    "consoleErrors": []
+  },
+  {
+    "slug": "gap-valentines",
+    "path": "/gaps/valentines-premium-tin",
+    "htmlClass": "",
+    "consoleErrors": [
+      "PAGEERROR: Invalid or unexpected token"
+    ]
+  },
+  {
+    "slug": "scenario-lab",
+    "path": "/scenario-lab",
+    "htmlClass": "dark",
+    "consoleErrors": []
+  },
+  {
+    "slug": "decisions",
+    "path": "/decisions",
+    "htmlClass": "",
+    "consoleErrors": [
+      "PAGEERROR: Invalid or unexpected token"
+    ]
+  }
+]
