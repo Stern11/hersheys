@@ -52,20 +52,23 @@ export function HistoricalVsSystemChart({ rows, unit, sampleContext }: { rows: H
       <div className="flex items-start gap-3">
         <div className="w-36 flex-none" />
         <div className="relative h-[18px] min-w-0 flex-1 border-t border-[var(--border-strong)]">
-          {axis.ticks.map((t, i) => {
+          {axis.ticks.map((t) => {
             const pct = (t / axis.max) * 100;
             return (
               <div key={t} className="absolute top-0" style={{ left: `${pct}%` }}>
                 <span className="absolute top-0 block h-1 w-px bg-[var(--border-strong)]" />
                 <span className="absolute top-[5px] block whitespace-nowrap text-[10px] tabular-nums text-[var(--text-muted)]" style={{ transform: anchorTransform(labelAnchor(pct)) }}>
                   {t.toLocaleString()}
-                  {i === axis.ticks.length - 1 ? ` ${unit}` : ""}
                 </span>
               </div>
             );
           })}
         </div>
-        <div className="w-20 flex-none" />
+        {/* The unit labels the AXIS, not the last tick. Glued to the final
+            tick it widened that end-anchored label until it ran back over the
+            tick before it — "60" and "80 days" collided whenever this chart
+            was rendered in the narrow Scenario Lab panel. */}
+        <div className="w-20 flex-none pl-1 pt-[5px] text-[10px] leading-none text-[var(--text-muted)]">{unit}</div>
       </div>
 
       <p className="text-[11px] text-[var(--text-muted)]">{sampleContext}</p>

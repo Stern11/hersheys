@@ -1,6 +1,17 @@
 import { describe, it, expect } from "vitest";
 import type { CapacityImpactByLine } from "@/types/scenario";
-import { buildCapacityChartModel, riskToken, totalLoadHours, visibleCapacitySeries } from "./capacity-chart-model";
+import {
+  CAPACITY_SERIES,
+  buildCapacityChartModel,
+  capacityRunRate,
+  formalContrastNote,
+  riskLevelExplanation,
+  riskToken,
+  runRateSourceLabel,
+  totalLoadHours,
+  unitsAtRunRate,
+  visibleCapacitySeries,
+} from "./capacity-chart-model";
 import { lineDisplayName } from "./line-label";
 import { detectPlanningGaps } from "@/lib/planning-engine/gaps";
 
@@ -149,6 +160,140 @@ describe("capacity chart model — degenerate input", () => {
   });
 });
 
+describe("capacity chart model — the formal-vs-effective contrast", () => {
+  const model = buildCapacityChartModel(THREE_LINES);
+  const byLine = new Map(model.rows.map((r) => [r.lineId, r]));
+
+  it("splits load into the part the formal plan can see and the part it cannot", () => {
+    for (const r of model.rows) {
+      expect(r.formalHours + r.unresolvedHours).toBeCloseTo(r.loadHours, 6);
+      const nonFormal = r.segments.filter((s) => s.key !== "formal").reduce((sum, s) => sum + s.hours, 0);
+      expect(r.unresolvedHours).toBeCloseTo(nonFormal, 6);
+    }
+  });
+
+  it("utilizationDelta is exactly the gap between the two printed percentages", () => {
+    for (const r of model.rows) {
+      expect(r.utilizationDelta).toBeCloseTo(r.effectiveUtilization - r.formalUtilization, 6);
+      // and it is reproducible from the row's own hours
+      expect(r.utilizationDelta).toBeCloseTo(r.unresolvedHours / r.ceilingHours, 2);
+    }
+  });
+
+  it("flags the 'only looks safe' line: formal alone clears the target, effective does not", () => {
+    const l3 = byLine.get("line_03")!;
+    expect(l3.formalCrossesTarget).toBe(false);
+    expect(l3.crossesTarget).toBe(true);
+    expect(l3.crossesCeiling).toBe(false);
+    expect(l3.overTargetHours).toBeCloseTo(l3.loadHours - l3.targetHours, 6);
+    expect(formalContrastNote(l3)).toContain("only looks safe");
+  });
+
+  it("does not make the 'only looks safe' claim about a line that is under target", () => {
+    const l1 = byLine.get("line_01")!;
+    expect(l1.crossesTarget).toBe(false);
+    expect(l1.overTargetHours).toBe(0);
+    expect(l1.headroomHours).toBeCloseTo(l1.ceilingHours - l1.loadHours, 6);
+    expect(formalContrastNote(l1)).not.toContain("only looks safe");
+  });
+
+  it("says so plainly when there is no unresolved load to contrast against", () => {
+    const allFormal = buildCapacityChartModel([
+      row({ lineId: "line_01", formalLoadHours: 200, validatedUnresolvedLoadHours: 0, aiInferredLoadHours: 0, riskLevel: "positive" }),
+    ]).rows[0]!;
+    expect(allFormal.unresolvedHours).toBe(0);
+    expect(allFormal.utilizationDelta).toBeCloseTo(0, 6);
+    expect(formalContrastNote(allFormal)).toContain("same number");
+  });
+});
+
+describe("capacity chart model — row status treatment", () => {
+  it("atRisk mirrors the engine's risk level and never touches a state token", () => {
+    const model = buildCapacityChartModel(THREE_LINES);
+    for (const r of model.rows) {
+      expect(r.atRisk).toBe(r.riskLevel !== "positive");
+      expect(r.risk.startsWith("--risk-")).toBe(true);
+    }
+    expect(model.anyAtRisk).toBe(true);
+    expect(model.rows.find((r) => r.lineId === "line_03")!.atRisk).toBe(true);
+    expect(model.rows.find((r) => r.lineId === "line_01")!.atRisk).toBe(false);
+  });
+
+  it("anyAtRisk is false when every line is within target, so the status legend entry drops", () => {
+    const calm = buildCapacityChartModel([row({ lineId: "line_01", riskLevel: "positive" })]);
+    expect(calm.anyAtRisk).toBe(false);
+  });
+
+  it("explains each risk level rather than leaving the tint undecodable", () => {
+    expect(riskLevelExplanation("critical")).toContain("ceiling");
+    expect(riskLevelExplanation("warning")).toContain("target");
+    expect(riskLevelExplanation("positive")).toContain("target");
+  });
+});
+
+describe("capacity chart model — what the hover adds", () => {
+  const model = buildCapacityChartModel(THREE_LINES);
+
+  it("gives every segment its share of the ceiling and the running total through it", () => {
+    for (const r of model.rows) {
+      let running = 0;
+      for (const s of r.segments) {
+        running += s.hours;
+        expect(s.cumulativeHours).toBeCloseTo(running, 6);
+        expect(s.shareOfCeiling).toBeCloseTo(s.hours / r.ceilingHours, 6);
+        expect(s.cumulativeUtilization).toBeCloseTo(running / r.ceilingHours, 6);
+      }
+      const last = r.segments[r.segments.length - 1];
+      if (last) expect(last.cumulativeUtilization).toBeCloseTo(r.effectiveUtilization, 3);
+    }
+  });
+
+  it("converts hours back to units through the row's OWN run rate", () => {
+    const l1 = model.rows.find((r) => r.lineId === "line_01")!;
+    expect(l1.runRateUnitsPerHour).toBe(10_000);
+    expect(l1.runRateSource).toBe("line standard rate");
+    const formal = l1.segments.find((s) => s.key === "formal")!;
+    expect(formal.units).toBe(230 * 10_000);
+    expect(l1.unresolvedUnits).toBe(Math.round(l1.unresolvedHours * 10_000));
+  });
+
+  it("returns null instead of inventing units when the row carries no run rate", () => {
+    const noRate = { ...row({ lineId: "line_01" }), runRateUnitsPerHour: undefined, runRateSource: undefined };
+    expect(capacityRunRate(noRate)).toBeNull();
+    expect(runRateSourceLabel(noRate)).toBeNull();
+    expect(unitsAtRunRate(100, null)).toBeNull();
+    const built = buildCapacityChartModel([noRate]).rows[0]!;
+    expect(built.runRateUnitsPerHour).toBeNull();
+    expect(built.unresolvedUnits).toBeNull();
+    expect(built.segments.every((s) => s.units === null)).toBe(true);
+  });
+
+  it("rejects a zero or negative run rate rather than dividing by it", () => {
+    expect(capacityRunRate({ ...row({ lineId: "line_01" }), runRateUnitsPerHour: 0 })).toBeNull();
+    expect(capacityRunRate({ ...row({ lineId: "line_01" }), runRateUnitsPerHour: -5 })).toBeNull();
+  });
+
+  it("every series carries a planning-terms meaning, so no tooltip just restates its label", () => {
+    for (const s of CAPACITY_SERIES) {
+      expect(s.meaning.length).toBeGreaterThan(40);
+      expect(s.meaning.toLowerCase()).not.toBe(s.label.toLowerCase());
+    }
+  });
+
+  it("segment index drives the separator, so only the first segment draws none", () => {
+    for (const r of model.rows) {
+      expect(r.segments.map((s) => s.index)).toEqual(r.segments.map((_, i) => i));
+    }
+  });
+
+  it("formalPct sits on the shared axis and never past the row's own load", () => {
+    for (const r of model.rows) {
+      expect(r.formalPct).toBeCloseTo((r.formalHours / model.axis.max) * 100, 6);
+      expect(r.formalPct).toBeLessThanOrEqual(r.loadPct + 1e-9);
+    }
+  });
+});
+
 describe("capacity chart model — against real engine output", () => {
   const halloween = detectPlanningGaps().find((r) => r.gap.id === "halloween-2027")!;
   const impact = halloween.scenarioResult!.capacityImpact;
@@ -169,6 +314,27 @@ describe("capacity chart model — against real engine output", () => {
     const model = buildCapacityChartModel(impact);
     for (const r of model.rows) {
       expect(r.loadHours / r.ceilingHours).toBeCloseTo(r.effectiveUtilization, 3);
+    }
+  });
+
+  it("the constraint line really is the 'formal looks safe, effective does not' case the section claims", () => {
+    // The section subtitle asserts this about Stuarts Draft L03. If the engine
+    // ever stops producing that situation, the chip's sentence would be a lie —
+    // so it is asserted rather than assumed.
+    const model = buildCapacityChartModel(impact);
+    const l3 = model.rows.find((r) => r.lineId === "line_03")!;
+    expect(l3.formalCrossesTarget).toBe(false);
+    expect(l3.crossesTarget).toBe(true);
+    expect(l3.atRisk).toBe(true);
+    expect(l3.utilizationDelta).toBeGreaterThan(0);
+    expect(formalContrastNote(l3)).toContain("only looks safe");
+  });
+
+  it("the engine supplies a run rate, so the hour->unit tooltip rows are real", () => {
+    const model = buildCapacityChartModel(impact);
+    for (const r of model.rows) {
+      expect(r.runRateUnitsPerHour).not.toBeNull();
+      expect(r.segments.every((s) => s.units !== null)).toBe(true);
     }
   });
 });

@@ -92,9 +92,19 @@ export function LeadTimeHistogram({
             ))}
           </div>
 
-          {/* reference markers */}
+          {/* Reference markers. The Median marker carries `--state-historical`
+              — the same token as the bars it crosses — so without a separating
+              ring it vanished exactly where it matters, inside the tall
+              buckets. A 1px `--surface` halo keeps every marker readable over
+              a bar in both themes without recolouring it (the token is the
+              correct one: it IS the historical series' statistic). */}
           {model.markers.map((m) => (
-            <div key={m.label} className="absolute inset-y-0 w-[1.5px] -translate-x-1/2" style={{ left: `${m.pct}%`, background: `var(${m.token})` }} title={`${m.label} ${Math.round(m.value)}d`} />
+            <div
+              key={m.label}
+              className="absolute inset-y-0 w-[1.5px] -translate-x-1/2"
+              style={{ left: `${m.pct}%`, background: `var(${m.token})`, boxShadow: "0 0 0 1px var(--surface)" }}
+              title={`${m.label} ${Math.round(m.value)}d`}
+            />
           ))}
         </div>
       </div>

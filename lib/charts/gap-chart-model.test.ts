@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { buildGapChartModel, type GapChartRowInput } from "./gap-chart-model";
+import {
+  bandsOverlap,
+  buildGapChartModel,
+  LABEL_OFFSET_PCT,
+  resolveFormalLabel,
+  SHORTFALL_LABEL_COMPACT_PCT,
+  SHORTFALL_LABEL_FULL_PCT,
+  type GapChartRowInput,
+} from "./gap-chart-model";
 
 const ROWS: GapChartRowInput[] = [
   { period: "Halloween 2024", actual: 3_950_000 },
@@ -58,7 +66,9 @@ describe("gap chart model — a readable y scale", () => {
 
 describe("gap chart model — legend honesty", () => {
   it("advertises only the series that are actually drawn", () => {
-    expect(buildGapChartModel(ROWS, 3_800_000).legend).toEqual({ historical: true, range: true, base: true, formal: true });
+    // exhaustive shape (incl. the covered/shortfall/trend marks added later)
+    // is asserted in "legend honesty for the new marks" below
+    expect(buildGapChartModel(ROWS, 3_800_000).legend).toMatchObject({ historical: true, range: true, base: true, formal: true });
   });
 
   it("drops 'Historical actual' when no row carries one", () => {
@@ -92,5 +102,265 @@ describe("gap chart model — degenerate input", () => {
   it("gives a degenerate low===high band a visible minimum height", () => {
     const model = buildGapChartModel([{ period: "p", low: 100, high: 100 }], 50);
     expect(model.rows[0]!.range!.heightPct).toBeGreaterThan(0);
+  });
+});
+
+/* ===========================================================================
+ * The shortfall — the whole reason the chart exists. It must be a drawn
+ * quantity, not a subtraction the planner performs by eye.
+ * ========================================================================= */
+
+describe("gap chart model — the shortfall is geometry, not a caption", () => {
+  const model = buildGapChartModel(ROWS, 3_800_000);
+
+  it("quantifies the unrepresented volume against the expected point", () => {
+    const sf = model.shortfall!;
+    expect(sf).toBeTruthy();
+    expect(sf.expectedPoint).toBe(4_752_000);
+    expect(sf.formalValue).toBe(3_800_000);
+    expect(sf.value).toBe(952_000);
+    expect(sf.shareOfExpected).toBeCloseTo(952_000 / 4_752_000, 9);
+  });
+
+  it("carries the shortfall's own uncertainty rather than one number", () => {
+    const sf = model.shortfall!;
+    expect(sf.lowValue).toBe(4_561_920 - 3_800_000);
+    expect(sf.highValue).toBe(4_942_080 - 3_800_000);
+    // even the optimistic end of the envelope is short of nothing being wrong
+    expect(sf.lowValue).toBeGreaterThan(0);
+    expect(sf.lowValue).toBeLessThan(sf.value);
+    expect(sf.highValue).toBeGreaterThan(sf.value);
+  });
+
+  it("draws the band exactly between the formal line and the expected point", () => {
+    const sf = model.shortfall!;
+    const col = model.rows[3]!.column!;
+    expect(sf.topPct).toBeCloseTo(col.pointTopPct, 9);
+    expect(sf.topPct + sf.heightPct).toBeCloseTo(model.formal.topPct, 9);
+    // the band's height encodes the shortfall on the same scale as the bars
+    expect(sf.heightPct).toBeCloseTo((sf.value / model.axis.max) * 100, 6);
+  });
+
+  it("splits the expected column at the formal plan so both parts are readable", () => {
+    const col = model.rows[3]!.column!;
+    expect(col.point).toBe(4_752_000);
+    expect(col.pointIsBase).toBe(true);
+    expect(col.coveredValue).toBe(3_800_000);
+    expect(col.coveredHeightPct + model.shortfall!.heightPct).toBeCloseTo(col.heightPct, 6);
+  });
+
+  it("has no shortfall when the formal plan already covers the expected point", () => {
+    const covered = buildGapChartModel([{ period: "p", low: 100, base: 150, high: 200 }], 400);
+    expect(covered.shortfall).toBeNull();
+    expect(covered.legend.shortfall).toBe(false);
+    expect(covered.rows[0]!.column!.coveredValue).toBe(150);
+    expect(covered.legend.covered).toBe(true);
+  });
+
+  it("falls back to the envelope high when no P50 point exists", () => {
+    const noBase = buildGapChartModel([{ period: "p", low: 100, high: 200 }], 120);
+    const col = noBase.rows[0]!.column!;
+    expect(col.pointIsBase).toBe(false);
+    expect(col.point).toBe(200);
+    expect(noBase.shortfall!.value).toBe(80);
+  });
+
+  it("keeps the shortfall caption clear of the envelope whisker hanging into the band", () => {
+    const sf = model.shortfall!;
+    const lowTopPct = model.rows[3]!.range!.topPct + model.rows[3]!.range!.heightPct;
+    // caption starts at or below the whisker's low cap...
+    expect(sf.labelTopPct).toBeGreaterThanOrEqual(lowTopPct - 1e-9);
+    // ...and ends at or above the formal line that closes the band
+    expect(sf.labelTopPct + sf.labelHeightPct).toBeLessThanOrEqual(model.formal.topPct + 1e-9);
+    expect(sf.labelFit).toBe("full");
+  });
+
+  it("degrades the caption to a value, then drops it, as the clear zone shrinks", () => {
+    // clear zone = formal -> the envelope low; squeeze it by raising `low`
+    const full = buildGapChartModel([{ period: "p", low: 3_000_000, base: 4_800_000, high: 5_000_000 }], 2_000_000);
+    expect(full.shortfall!.labelFit).toBe("full");
+
+    const compact = buildGapChartModel([{ period: "p", low: 4_400_000, base: 4_800_000, high: 5_000_000 }], 4_000_000);
+    expect(compact.shortfall!.labelFit).toBe("compact");
+
+    const none = buildGapChartModel([{ period: "p", low: 4_780_000, base: 4_800_000, high: 5_000_000 }], 4_760_000);
+    expect(none.shortfall!.labelFit).toBe("none");
+    expect(none.shortfall!.labelHeightPct).toBe(0);
+  });
+
+  it("never places the caption outside the plot box", () => {
+    for (const formal of [10_000, 1_000_000, 3_800_000, 4_700_000]) {
+      const m = buildGapChartModel(ROWS, formal);
+      const sf = m.shortfall!;
+      expect(sf.labelTopPct).toBeGreaterThanOrEqual(0);
+      expect(sf.labelTopPct + sf.labelHeightPct).toBeLessThanOrEqual(100.001);
+    }
+  });
+});
+
+/* ===========================================================================
+ * Caption anti-collision — the bug where "4.6M–4.9M" and "Formal plan: 3.8M
+ * units" were drawn on top of each other in the top-right corner.
+ * ========================================================================= */
+
+describe("gap chart model — caption anti-collision", () => {
+  it("detects overlapping caption footprints", () => {
+    expect(bandsOverlap({ topPct: 10, heightPct: 12 }, { topPct: 20, heightPct: 12 })).toBe(true);
+    expect(bandsOverlap({ topPct: 10, heightPct: 12 }, { topPct: 22, heightPct: 12 })).toBe(false);
+    // touching edges are not an overlap
+    expect(bandsOverlap({ topPct: 0, heightPct: 10 }, { topPct: 10, heightPct: 10 })).toBe(false);
+  });
+
+  it("keeps the formal caption on the right when nothing is anchored there", () => {
+    expect(resolveFormalLabel(60, [], [])).toEqual({ labelBelow: false, labelSide: "right" });
+  });
+
+  it("moves the formal caption to the other end when a right-anchored caption is in the way", () => {
+    const obstacle = { topPct: 50, heightPct: LABEL_OFFSET_PCT };
+    expect(resolveFormalLabel(60, [obstacle], [])).toEqual({ labelBelow: false, labelSide: "left" });
+  });
+
+  it("flips to the other side of the line only when both ends are blocked", () => {
+    const band = { topPct: 48, heightPct: LABEL_OFFSET_PCT };
+    const placement = resolveFormalLabel(60, [band], [band]);
+    expect(placement.labelBelow).toBe(true);
+    expect(placement.labelSide).toBe("right");
+  });
+
+  it("still moves the caption below a line pinned to the top of the box", () => {
+    expect(resolveFormalLabel(4, [], []).labelBelow).toBe(true);
+  });
+
+  it("resolves the real collision: the envelope + shortfall captions push the formal caption aside", () => {
+    const model = buildGapChartModel(ROWS, 3_800_000);
+    const formalBand = { topPct: model.formal.topPct - LABEL_OFFSET_PCT, heightPct: LABEL_OFFSET_PCT };
+    const rangeBand = { topPct: model.rows[3]!.range!.labelTopPct, heightPct: LABEL_OFFSET_PCT };
+    const shortfallBand = { topPct: model.shortfall!.labelTopPct, heightPct: model.shortfall!.labelHeightPct };
+
+    // the right-hand column genuinely has a caption where the formal caption wanted to go
+    expect(bandsOverlap(formalBand, shortfallBand)).toBe(true);
+    expect(model.formal.labelSide).toBe("left");
+    expect(model.formal.labelBelow).toBe(false);
+    // and the envelope caption is nowhere near it, so it is not the thing that moved it
+    expect(bandsOverlap(formalBand, rangeBand)).toBe(false);
+  });
+
+  it("leaves the formal caption on the right when the plan sits far below the column captions", () => {
+    const model = buildGapChartModel(ROWS, 1_000_000);
+    expect(model.formal.labelSide).toBe("right");
+  });
+});
+
+/* ===========================================================================
+ * Trend — "demand has grown three years running while the formal plan sits
+ * below all three" is the planner's insight; it has to be derived, not told.
+ * ========================================================================= */
+
+describe("gap chart model — season-over-season trend", () => {
+  const model = buildGapChartModel(ROWS, 3_800_000);
+
+  it("attaches each delta to the later season and never to the first", () => {
+    expect(model.rows[0]!.trend).toBeUndefined();
+    expect(model.rows[1]!.trend).toMatchObject({ prevPeriod: "Halloween 2024", prevActual: 3_950_000, delta: 230_000, direction: "up" });
+    expect(model.rows[1]!.trend!.pctChange).toBeCloseTo(230_000 / 3_950_000, 9);
+    expect(model.rows[2]!.trend).toMatchObject({ prevPeriod: "Halloween 2025", delta: 220_000, direction: "up" });
+    // the expected column is not a closed season, so it carries no actual delta
+    expect(model.rows[3]!.trend).toBeUndefined();
+  });
+
+  it("signs a falling season correctly and calls a flat one flat", () => {
+    const falling = buildGapChartModel(
+      [
+        { period: "a", actual: 100 },
+        { period: "b", actual: 80 },
+        { period: "c", actual: 80 },
+      ],
+      50
+    );
+    expect(falling.rows[1]!.trend).toMatchObject({ delta: -20, direction: "down" });
+    expect(falling.rows[1]!.trend!.pctChange).toBeCloseTo(-0.2, 9);
+    expect(falling.rows[2]!.trend).toMatchObject({ delta: 0, direction: "flat" });
+  });
+
+  it("keeps a delta caption inside the plot box even for a bar at the ceiling", () => {
+    const tall = buildGapChartModel(
+      [
+        { period: "a", actual: 100 },
+        { period: "b", actual: 6_000_000 },
+      ],
+      100
+    );
+    expect(tall.rows[1]!.trend!.labelTopPct).toBeGreaterThanOrEqual(0);
+  });
+
+  it("summarises the series the way a planner would state it", () => {
+    const s = model.trendSummary!;
+    expect(s.seasons).toBe(3);
+    expect(s.firstPeriod).toBe("Halloween 2024");
+    expect(s.lastPeriod).toBe("Halloween 2026");
+    expect(s.totalDelta).toBe(450_000);
+    expect(s.direction).toBe("up");
+    expect(s.cagr).toBeCloseTo(Math.pow(4_400_000 / 3_950_000, 1 / 2) - 1, 9);
+    // the headline: every closed season already exceeded the plan booked for 2027
+    expect(s.seasonsAboveFormal).toBe(3);
+  });
+
+  it("has no summary when fewer than two seasons are closed", () => {
+    expect(buildGapChartModel([{ period: "a", actual: 100 }], 50).trendSummary).toBeNull();
+    expect(buildGapChartModel([{ period: "a", actual: 100 }], 50).legend.trend).toBe(false);
+  });
+
+  it("places the trend path on the column centres so the line meets the bar tops", () => {
+    expect(model.rows.map((r) => r.centerPct)).toEqual([12.5, 37.5, 62.5, 87.5]);
+    const path = model.trendPath;
+    expect(path.actual).toHaveLength(3);
+    expect(path.actual[0]).toEqual({ xPct: 12.5, yPct: 100 - (3_950_000 / model.axis.max) * 100 });
+    expect(path.actual[2]!.yPct).toBeLessThan(path.actual[0]!.yPct); // rising = higher on screen
+  });
+
+  it("connects the last closed season to the expected point, and only that", () => {
+    const [from, to] = model.trendPath.projection!;
+    expect(from).toEqual(model.trendPath.actual[2]);
+    expect(to).toEqual({ xPct: 87.5, yPct: model.rows[3]!.column!.pointTopPct });
+  });
+
+  it("draws no projection when there is no expected column to connect to", () => {
+    const noExpected = buildGapChartModel(
+      [
+        { period: "a", actual: 100 },
+        { period: "b", actual: 120 },
+      ],
+      90
+    );
+    expect(noExpected.trendPath.projection).toBeNull();
+    expect(noExpected.trendPath.actual).toHaveLength(2);
+  });
+});
+
+describe("gap chart model — legend honesty for the new marks", () => {
+  it("advertises exactly the marks that are drawn", () => {
+    expect(buildGapChartModel(ROWS, 3_800_000).legend).toEqual({
+      historical: true,
+      range: true,
+      base: true,
+      formal: true,
+      covered: true,
+      shortfall: true,
+      trend: true,
+    });
+  });
+
+  it("drops the covered and shortfall entries when there is no formal plan", () => {
+    const legend = buildGapChartModel([{ period: "p", low: 100, base: 150, high: 200 }], 0).legend;
+    expect(legend.formal).toBe(false);
+    expect(legend.covered).toBe(false);
+    expect(legend.shortfall).toBe(false);
+  });
+});
+
+describe("gap chart model — caption sizing constants stay ordered", () => {
+  it("a two-line caption needs more room than a one-line caption", () => {
+    expect(SHORTFALL_LABEL_FULL_PCT).toBeGreaterThan(SHORTFALL_LABEL_COMPACT_PCT);
+    expect(LABEL_OFFSET_PCT).toBeGreaterThanOrEqual(SHORTFALL_LABEL_FULL_PCT);
   });
 });

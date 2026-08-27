@@ -70,8 +70,11 @@ export function DecisionRunwayTimeline({
       )}
 
       <div className="relative pb-14 pt-6">
-        {/* window bars */}
-        <div className="relative mb-2 h-4">
+        {/* Window bars. Each caption is absolutely placed 14px above its own
+            bar, so the row above it must leave at least that much clearance —
+            with `mb-2` (8px) the production bar was drawn straight through the
+            "Sales / event window" caption. */}
+        <div className="relative mb-5 h-4">
           <span className="absolute -top-3.5 left-0 text-[10px] font-medium uppercase tracking-wide text-[var(--text-muted)]">Production window</span>
           <div className="absolute inset-y-0 rounded-[3px] bg-[var(--state-formal)] opacity-80" style={{ left: pct(productionWindow.start), right: `calc(100% - ${pct(productionWindow.end)})` }} />
         </div>
