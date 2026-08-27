@@ -3,14 +3,16 @@
 import type { PlanningGap } from "@/types/gaps";
 import type { PlanningBasis } from "@/types/methodology";
 import type { EvidenceSignal } from "@/types/shared";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MetricBand, type MetricBandItem } from "@/components/planning/metric-band";
 import { MethodologyBadge } from "@/components/methodology/methodology-badge";
 import { EvidencePanel } from "@/components/evidence/evidence-panel";
 import { GapTypeBadge } from "./gap-type-badge";
+import { categoryForGapType, getCategory } from "./gap-category";
 
 const SEVERITY_VARIANT = { critical: "critical", warning: "warning", informational: "neutral" } as const;
 
@@ -41,11 +43,42 @@ export function GapWorkspaceShell({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  /**
+   * A gap workspace was previously a dead end — it could be reached from the
+   * worklist, a category page, Decisions or the Overview, but carried no way
+   * back, so a planner who opened one had to use the browser's Back button.
+   * The trail names the category the gap belongs to, because that (not the
+   * flat worklist) is where the sibling situations live. Capacity and
+   * material gaps are consequence lenses with no category page of their own
+   * (`categoryForGapType` returns null), so they get the worklist crumb only.
+   */
+  const categorySlug = categoryForGapType(gap.type);
+  const category = categorySlug ? getCategory(categorySlug) : null;
 
   return (
     <div className="flex h-full flex-col">
       {/* Header — Level 1/2: what am I looking at, what's the primary risk */}
       <div className="flex-none border-b border-[var(--border)] px-6 py-4">
+        <nav aria-label="Breadcrumb" className="mb-2 flex items-center gap-1 text-[11.5px] text-[var(--text-muted)]">
+          <Link href="/gaps" className="rounded-[var(--radius-sm)] px-1 py-0.5 transition-colors hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)]">
+            Planning Gaps
+          </Link>
+          {category && (
+            <>
+              <ChevronRight className="size-3 flex-none opacity-60" />
+              <Link
+                href={`/gaps/${category.slug}`}
+                className="rounded-[var(--radius-sm)] px-1 py-0.5 transition-colors hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)]"
+              >
+                {category.label}
+              </Link>
+            </>
+          )}
+          <ChevronRight className="size-3 flex-none opacity-60" />
+          <span aria-current="page" className="truncate px-1 py-0.5 text-[var(--text-secondary)]">
+            {gap.title}
+          </span>
+        </nav>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
