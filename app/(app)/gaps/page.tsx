@@ -22,7 +22,8 @@ export default function GapsLandingPage() {
       <div>
         <h1 className="text-[17px] font-semibold">Planning Gaps</h1>
         <p className="mt-1 text-[13px] text-[var(--text-secondary)]">
-          {categorized.length} active situations across your current plan{dueSoon > 0 ? ` · ${dueSoon} require action within 6 weeks` : ""}
+          {categorized.length} active situation{categorized.length === 1 ? "" : "s"} across your current plan
+          {dueSoon > 0 ? ` · ${dueSoon} ${dueSoon === 1 ? "requires" : "require"} action within 6 weeks` : ""}
         </p>
       </div>
 

@@ -1,4 +1,4 @@
-import type { Material } from "@/types/planning";
+import type { Material, MaterialReadiness } from "@/types/planning";
 import type { MasterAssumptionOverride } from "@/types/scenario";
 
 /**
@@ -15,6 +15,21 @@ export function resolveLeadTimeDays(material: Material, observedP80: number, ove
     return material.historicalMedianLeadTimeDays;
   }
   return material.systemLeadTimeDays;
+}
+
+/**
+ * WHICH basis resolveLeadTimeDays() just used. Kept as a sibling of that
+ * function, and exhaustively paired with it in the tests, because the two
+ * drifting apart is exactly the cross-page contradiction this fixes: the
+ * BOM explosion hard-coded the basis label to "system" while the resolved
+ * number was the accepted historical P80, so the Halloween workspace
+ * reported "74d (system)" for Printed Seasonal Film while the lead-time
+ * workspace reported the accepted P80 basis for the same 74 days.
+ */
+export function resolveLeadTimeBasis(override?: MasterAssumptionOverride): MaterialReadiness["leadTimeBasis"] {
+  if (override?.selectedBasis === "scenario" && override.scenarioValue != null) return "scenario";
+  if (override?.selectedBasis === "historical") return override.leadTimeStatistic === "p80" ? "historical_p80" : "historical_median";
+  return "system";
 }
 
 /** Production requirement date - lead time = decision/order-by date. */

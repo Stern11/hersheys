@@ -13,6 +13,12 @@ export interface MaterialExplosionInput {
   bomOverrides?: Record<string, BomComponentOverride>;
   materialOverrides?: Record<string, MaterialOverride>;
   leadTimeDaysByMaterial: Map<string, number>;
+  /**
+   * WHICH basis produced each entry of `leadTimeDaysByMaterial`. Supplied by
+   * the caller alongside the days themselves so the reported basis can never
+   * disagree with the reported number — see resolveLeadTimeBasis().
+   */
+  leadTimeBasisByMaterial?: Map<string, MaterialReadiness["leadTimeBasis"]>;
   productionRequirementDate: string;
 }
 
@@ -55,6 +61,11 @@ export function partialBomExplosion(input: MaterialExplosionInput): MaterialExpl
     if (matOverride?.provisionalRequirementIncluded === false) return;
 
     const leadTimeDays = matOverride?.leadTimeDaysOverride ?? input.leadTimeDaysByMaterial.get(row.materialId) ?? material.systemLeadTimeDays;
+    // The basis must describe the number actually used above, in the same
+    // precedence order: a per-material scenario override wins, otherwise the
+    // basis the caller resolved with the days, otherwise the ERP norm.
+    const leadTimeBasis: MaterialReadiness["leadTimeBasis"] =
+      matOverride?.leadTimeDaysOverride != null ? "scenario" : input.leadTimeBasisByMaterial?.get(row.materialId) ?? "system";
     const earliestDecisionDate = decisionDeadlineFromLeadTime(input.productionRequirementDate, leadTimeDays);
     const readinessState = override?.readinessOverride ?? classifyReadiness(confidence);
 
@@ -77,7 +88,7 @@ export function partialBomExplosion(input: MaterialExplosionInput): MaterialExpl
       confidence,
       confidenceDimensions: [{ dimension: "analogue_quality", score: confidence, note: override?.confidenceOverrideReason }],
       leadTimeDaysUsed: leadTimeDays,
-      leadTimeBasis: matOverride?.leadTimeDaysOverride != null ? "scenario" : "system",
+      leadTimeBasis,
       earliestDecisionDate,
       readiness: readinessState,
       reason: readinessReason(readinessState, confidence),

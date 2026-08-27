@@ -64,15 +64,19 @@ export function GapWorkspaceShell({
         </div>
       </div>
 
-      {/* Body — Level 3-6: evidence/method/impact/time (left), control surface (right rail) */}
+      {/* Body — Level 3-6: evidence/method/impact/time (left), control surface (right rail).
+          `min-w-0` on the main column is load-bearing: a flex item's default
+          `min-width:auto` makes its intrinsic content width its floor, so one
+          wide child (a chart, a readiness table) would widen the whole row and
+          squeeze the rail rather than scrolling inside its own container. */}
       <div className="flex min-h-0 flex-1">
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="flex flex-col gap-6">{children}</div>
+        <div className="min-w-0 flex-1 overflow-y-auto p-6">
+          <div className="flex min-w-0 flex-col gap-6">{children}</div>
         </div>
 
-        <div className="w-80 flex-none overflow-y-auto border-l border-[var(--border)] bg-[var(--surface-sunken)] p-4">
-          <div className="flex flex-col gap-4">
-            <div>
+        <div className="w-80 flex-none overflow-y-auto overflow-x-hidden border-l border-[var(--border)] bg-[var(--surface-sunken)] p-4">
+          <div className="flex min-w-0 flex-col gap-4">
+            <div className="min-w-0">
               <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Methodology</div>
               <div className="flex flex-wrap gap-1.5">
                 {planningBasis.methodologyIds.map((id) => (
@@ -81,12 +85,18 @@ export function GapWorkspaceShell({
               </div>
             </div>
 
-            <div>
-              <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Why this basis</div>
-              <p className="text-[12px] leading-relaxed text-[var(--text-secondary)]">{planningBasis.whySelected}</p>
-            </div>
+            {/* The situation paragraph in the header and this block used to be
+                the same string on every generic gap page. Rendering identical
+                prose twice teaches a planner that one of the two is filler, so
+                the duplicate is suppressed rather than repeated. */}
+            {planningBasis.whySelected !== situation && (
+              <div className="min-w-0">
+                <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Why this basis</div>
+                <p className="break-words text-[12px] leading-relaxed text-[var(--text-secondary)]">{planningBasis.whySelected}</p>
+              </div>
+            )}
 
-            <div>
+            <div className="min-w-0">
               <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Evidence ({evidence.length})</div>
               <EvidencePanel evidence={evidence} />
             </div>

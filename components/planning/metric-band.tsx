@@ -4,6 +4,13 @@ export interface MetricBandItem {
   label: string;
   value: string;
   tone?: "positive" | "warning" | "critical" | "neutral";
+  /**
+   * The arithmetic behind `value`, surfaced on hover. A derived number a
+   * planner cannot reproduce from what is on screen is a number they cannot
+   * defend in an S&OP meeting, so anything computed against a denominator
+   * that is not itself in the band carries its derivation here.
+   */
+  hint?: string;
 }
 
 /**
@@ -17,7 +24,7 @@ export function MetricBand({ items }: { items: MetricBandItem[] }) {
   return (
     <div className="flex divide-x divide-[var(--border)] overflow-x-auto rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)]">
       {items.map((item) => (
-        <div key={item.label} className="flex min-w-[128px] flex-1 flex-col gap-0.5 px-3.5 py-2.5">
+        <div key={item.label} className="flex min-w-[128px] flex-1 flex-col gap-0.5 px-3.5 py-2.5" title={item.hint}>
           <span className="text-[10.5px] font-medium uppercase tracking-wide text-[var(--text-muted)]">{item.label}</span>
           <span
             className={cn(
@@ -29,6 +36,7 @@ export function MetricBand({ items }: { items: MetricBandItem[] }) {
           >
             {item.value}
           </span>
+          {item.hint && <span className="text-[10px] leading-snug text-[var(--text-muted)]">{item.hint}</span>}
         </div>
       ))}
     </div>

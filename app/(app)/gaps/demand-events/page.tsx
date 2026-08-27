@@ -3,7 +3,8 @@ import { detectPlanningGaps } from "@/lib/planning-engine/gaps";
 import { getCategory, categoryForGapType } from "@/components/gaps/gap-category";
 import { CategoryPageHeader } from "@/components/gaps/category-page-header";
 import { GapTypeBadge } from "@/components/gaps/gap-type-badge";
-import { fmtDate, fmtNum, fmtPct } from "@/lib/utils/format";
+import { fmtDate, fmtNum } from "@/lib/utils/format";
+import { fmtUtilization, lineDisplayName, planningCompleteness, worstCapacityImpact } from "@/lib/gaps/gap-metrics";
 import { Badge } from "@/components/ui/badge";
 
 /**
@@ -20,7 +21,13 @@ export default function DemandEventsPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         {situations.map(({ gap, scenarioResult }) => {
-          const line = scenarioResult?.capacityImpact.reduce((worst, c) => (!worst || c.effectiveUtilization > worst.effectiveUtilization ? c : worst), scenarioResult.capacityImpact[0]);
+          const line = worstCapacityImpact(scenarioResult);
+          // The completeness percentage divides by the P50 expected point.
+          // Showing it beside the P80 alone made the only division a planner
+          // could actually perform on screen (3,800,000 / 4,942,080 = 76.9%)
+          // disagree with the printed 80%. The P50 is now on the card.
+          const completeness = scenarioResult ? planningCompleteness(gap.formalValue, scenarioResult.expectedDemandUnits.base) : null;
+
           return (
             <Link
               key={gap.id}
@@ -32,22 +39,27 @@ export default function DemandEventsPage() {
                 <GapTypeBadge type={gap.type} />
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-4 gap-3">
                 <Metric label="Formal demand" value={fmtNum(gap.formalValue)} />
+                <Metric label="Expected P50" value={completeness ? fmtNum(completeness.denominator) : "—"} />
                 <Metric label="Expected P80" value={fmtNum(gap.expectedValueHigh)} />
                 <Metric label="Unresolved" value={fmtNum(gap.unresolvedValue)} tone="warning" />
               </div>
 
-              <div className="flex items-center gap-2">
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--surface-sunken)]">
-                  <div className="h-full rounded-full bg-[var(--accent)]" style={{ width: fmtPct(scenarioResult ? scenarioResult.planningCompletenessPct / 100 : 0) }} />
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--surface-sunken)]">
+                    <div className="h-full rounded-full bg-[var(--accent)]" style={{ width: `${completeness?.pct ?? 0}%` }} />
+                  </div>
+                  <span className="flex-none text-[11px] tabular-nums text-[var(--text-muted)]">{completeness ? `${completeness.pct}% complete` : "—"}</span>
                 </div>
-                <span className="text-[11px] tabular-nums text-[var(--text-muted)]">{scenarioResult ? fmtPct(scenarioResult.planningCompletenessPct / 100) : "—"} complete</span>
+                {completeness && <p className="text-[10.5px] tabular-nums text-[var(--text-muted)]">{completeness.derivation}</p>}
               </div>
 
-              <div className="flex items-center justify-between border-t border-[var(--border)] pt-3 text-[12px]">
+              <div className="flex items-center justify-between gap-3 border-t border-[var(--border)] pt-3 text-[12px]">
                 <span className="text-[var(--text-secondary)]">
-                  Primary consequence: <span className="font-medium text-[var(--text-primary)]">{line ? `${line.lineId.replace("line_", "Line ")} at ${fmtPct(line.effectiveUtilization)}` : "—"}</span>
+                  Primary consequence:{" "}
+                  <span className="font-medium text-[var(--text-primary)]">{line ? `${lineDisplayName(line.lineId)} at ${fmtUtilization(line.effectiveUtilization)}` : "—"}</span>
                 </span>
                 {gap.earliestDeadlineId || scenarioResult?.decisionDeadlines.length ? (
                   <Badge variant={gap.severity === "critical" ? "critical" : "warning"}>

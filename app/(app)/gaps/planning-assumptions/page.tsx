@@ -2,6 +2,7 @@ import Link from "next/link";
 import { detectPlanningGaps } from "@/lib/planning-engine/gaps";
 import { getCategory, categoryForGapType } from "@/components/gaps/gap-category";
 import { CategoryPageHeader } from "@/components/gaps/category-page-header";
+import { lineDisplayName, misroutedActualLineId, roundTo } from "@/lib/gaps/gap-metrics";
 
 /**
  * Analytical / diagnostic — System Assumption vs. Historical Performance
@@ -34,11 +35,23 @@ export default function PlanningAssumptionsPage() {
                   <Row label="Decision impact" value={`${gap.unresolvedValue}d earlier`} tone="critical" />
                 </div>
               ) : (
-                <div className="grid grid-cols-3 gap-4">
-                  <Row label="System routing" value="Line 02" />
-                  <Row label="Observed majority" value={`${Math.round(gap.expectedValueHigh)}% Line 01`} tone="warning" />
-                  <Row label="Impact" value="Line 01 capacity understated" tone="critical" />
-                </div>
+                (() => {
+                  // Line names are read from master data, never hard-coded:
+                  // the plants were renamed to their real Hershey work
+                  // centres and "Line 01"/"Line 02" no longer name anything.
+                  const routed = gap.lineId ? lineDisplayName(gap.lineId) : "—";
+                  const actualId = misroutedActualLineId();
+                  const actual = actualId ? lineDisplayName(actualId) : "another work centre";
+                  const low = roundTo(gap.expectedValueLow, 1);
+                  const high = roundTo(gap.expectedValueHigh, 1);
+                  return (
+                    <div className="grid grid-cols-3 gap-4">
+                      <Row label="System routing" value={routed} />
+                      <Row label={`Observed on ${actual}`} value={low === high ? `${high}%` : `${low}–${high}%`} tone="warning" />
+                      <Row label="Impact" value={`${actual} capacity understated`} tone="critical" />
+                    </div>
+                  );
+                })()
               )}
             </Link>
           );

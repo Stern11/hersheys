@@ -2,6 +2,7 @@ import type { MaterialReadiness } from "@/types/planning";
 import { Badge } from "@/components/ui/badge";
 import { MaterialReadinessBadge } from "./material-readiness-badge";
 import { fmtDate } from "@/lib/utils/format";
+import { leadTimeBasisLabel } from "@/lib/gaps/gap-metrics";
 
 export interface MaterialReadinessRow extends MaterialReadiness {
   materialName: string;
@@ -20,9 +21,10 @@ export function MaterialReadinessView({ productName, rows }: { productName: stri
   const sorted = [...rows].sort((a, b) => confidenceRank(a.readiness) - confidenceRank(b.readiness));
 
   return (
-    <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)]">
-      <div className="border-b border-[var(--border)] bg-[var(--surface-sunken)] px-3 py-1.5 text-[11.5px] font-semibold">{productName}</div>
-      <table className="w-full border-collapse text-[12px]">
+    <div className="rounded-[var(--radius-md)] border border-[var(--border)]">
+      <div className="rounded-t-[var(--radius-md)] border-b border-[var(--border)] bg-[var(--surface-sunken)] px-3 py-1.5 text-[11.5px] font-semibold">{productName}</div>
+      <div className="overflow-x-auto">
+      <table className="w-full min-w-[680px] border-collapse text-[12px]">
         <thead>
           <tr className="text-left text-[10.5px] uppercase tracking-wide text-[var(--text-muted)]">
             <th className="px-3 py-1.5 font-medium">Component</th>
@@ -54,7 +56,12 @@ export function MaterialReadinessView({ productName, rows }: { productName: stri
                 </div>
               </td>
               <td className="px-3 py-2 tabular-nums text-[var(--text-secondary)]">
-                {r.leadTimeDaysUsed}d <span className="text-[10.5px] text-[var(--text-muted)]">({r.leadTimeBasis.replace("_", " ")})</span>
+                {/* `"historical_p80".replace("_", " ")` only replaced the first
+                    underscore, so this cell used to read "historical p80" —
+                    and before the basis was threaded through the explosion it
+                    read "system" for a lead time the plan had accepted off the
+                    historical P80. Both come from one labelled map now. */}
+                {r.leadTimeDaysUsed}d <span className="text-[10.5px] text-[var(--text-muted)]">({leadTimeBasisLabel(r.leadTimeBasis)})</span>
               </td>
               <td className="px-3 py-2 tabular-nums text-[var(--text-secondary)]">{fmtDate(r.earliestDecisionDate)}</td>
               <td className="px-3 py-2">
@@ -64,6 +71,7 @@ export function MaterialReadinessView({ productName, rows }: { productName: stri
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

@@ -33,7 +33,13 @@ export default function ScenarioLabIndexPage() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-[13.5px] font-medium">{s.name}</div>
-              <div className="truncate text-[12px] text-[var(--text-muted)]">{s.note}</div>
+              {/* A scenario note is a full sentence of planning rationale. It
+                  was clipped to one line with no way to read the rest — not
+                  even a tooltip. Two lines by default, the whole thing on
+                  hover. */}
+              <p className="line-clamp-2 text-[12px] leading-snug text-[var(--text-muted)]" title={s.note}>
+                {s.note}
+              </p>
             </div>
             <Badge variant={s.status === "preferred" ? "positive" : "neutral"}>{s.status.replace("_", " ")}</Badge>
             <ArrowRight className="size-4 flex-none text-[var(--text-muted)] transition-transform group-hover:translate-x-0.5" />

@@ -1,15 +1,22 @@
 import { Rng } from "@/lib/utils/rng";
 import { MATERIALS } from "./materials";
-import { PRODUCTION_LINES } from "./master-data";
+import { PRODUCTION_LINES, DEMO_NOW } from "./master-data";
 import { supplierForMaterial } from "./suppliers";
 import type { ObservedPerformance } from "@/types/planning";
 
 /**
  * Raw execution records that back every ObservedPerformance metric and every
  * evidence drilldown (PRD §18.3, §26.8). Generated once, deterministically,
- * from a fixed seed — never Math.random(). Printed Film's sample is shaped
- * to reproduce the exact golden gap (system 42d / historical median 67d /
- * P80 81d); other materials get smaller, realistic samples.
+ * from a fixed seed — never Math.random().
+ *
+ * Printed Seasonal Film's sample is shaped to reproduce the exact golden
+ * master-data gap: the ERP carries a 42-day (6-week) norm while a full year
+ * of PO-to-goods-receipt execution runs a 67-day median and a 74-day P80 —
+ * the "system says 6 weeks, the supplier actually runs 11" pattern that
+ * norm-setting programmes exist to catch. Other materials get smaller,
+ * realistic samples at their own lead-time profile: offshore litho tin at
+ * 16-20 weeks is the other long pole, ingredients sit at 4-10 weeks, and
+ * corrugate/PDQ at 3-5 weeks.
  */
 
 export interface PurchaseOrderRecord {
@@ -37,6 +44,12 @@ export interface ProductionConfirmationRecord {
 
 const rng = new Rng("heizen-execution-history-v1");
 
+/** Rolling 12-month execution window ending at the demo's "now". */
+export const OBSERVATION_WINDOW = {
+  start: new Date(new Date(DEMO_NOW).getTime() - 365 * 86_400_000).toISOString().slice(0, 10),
+  end: DEMO_NOW.slice(0, 10),
+} as const;
+
 function isoDaysAgo(anchor: Date, days: number): string {
   const d = new Date(anchor.getTime() - days * 86_400_000);
   return d.toISOString().slice(0, 10);
@@ -44,7 +57,7 @@ function isoDaysAgo(anchor: Date, days: number): string {
 
 function generatePOs(materialId: string, medianDays: number, p80Days: number, count: number, systemDays: number): PurchaseOrderRecord[] {
   const supplier = supplierForMaterial(materialId);
-  const anchor = new Date("2027-08-24T00:00:00.000Z");
+  const anchor = new Date(DEMO_NOW);
   // Log-normal-ish spread around the median, tuned so the 80th percentile of
   // the generated sample lands near p80Days.
   const sigma = Math.log(p80Days / medianDays) / 0.8416; // z-score for p80
@@ -65,28 +78,34 @@ function generatePOs(materialId: string, medianDays: number, p80Days: number, co
       elapsedDays: elapsed,
       quantity: Math.round(rng.range(800, 6000)),
       excluded: isOutlier,
-      excludedReason: isOutlier ? "Elapsed time >2.6x median — flagged as a disruption outlier, excluded from the default statistic." : undefined,
+      excludedReason: isOutlier ? "Elapsed time >2.6x median — treated as a one-off disruption (art re-approval, plate remake, or an origin/freight event) and excluded from the default statistic." : undefined,
     });
   }
   return records.sort((a, b) => (a.poDate < b.poDate ? 1 : -1));
 }
 
 export const PURCHASE_ORDER_RECORDS: PurchaseOrderRecord[] = [
+  // Printed Seasonal Film stays first so its golden sample is unaffected by
+  // any change to the other materials' draws from the shared RNG stream.
   ...generatePOs("mat_printed_film", 67, 81, 130, 42),
-  ...generatePOs("mat_foil", 34, 40, 22, 30),
-  ...generatePOs("mat_tin_trim", 52, 63, 20, 45),
-  ...generatePOs("mat_tray", 29, 35, 18, 25),
-  ...generatePOs("mat_cocoa", 33, 38, 24, 35),
-  ...generatePOs("mat_sugar", 20, 24, 20, 21),
-  ...generatePOs("mat_milk_solids", 27, 31, 18, 28),
-  ...generatePOs("mat_corrugate", 19, 22, 16, 18),
+  ...generatePOs("mat_foil", 34, 40, 23, 30),
+  ...generatePOs("mat_tin_trim", 126, 140, 21, 112),
+  ...generatePOs("mat_tray", 29, 35, 19, 25),
+  ...generatePOs("mat_cocoa", 66, 71, 25, 63),
+  ...generatePOs("mat_cocoa_butter", 59, 64, 23, 56),
+  ...generatePOs("mat_sugar", 38, 45, 21, 35),
+  ...generatePOs("mat_milk_solids", 34, 39, 19, 32),
+  ...generatePOs("mat_peanut_paste", 32, 37, 27, 30),
+  ...generatePOs("mat_lecithin", 52, 59, 17, 49),
+  ...generatePOs("mat_corrugate", 26, 31, 17, 24),
+  ...generatePOs("mat_pdq_display", 27, 32, 15, 25),
 ];
 
 export const purchaseOrdersForMaterial = (materialId: string): PurchaseOrderRecord[] =>
   PURCHASE_ORDER_RECORDS.filter((p) => p.materialId === materialId);
 
 function generateRunConfirmations(lineId: string, familyId: string, historicalMedianRate: number, count: number): ProductionConfirmationRecord[] {
-  const anchor = new Date("2027-08-24T00:00:00.000Z");
+  const anchor = new Date(DEMO_NOW);
   const sigma = 0.055; // tight-ish spread around the historical median
   const records: ProductionConfirmationRecord[] = [];
   for (let i = 0; i < count; i++) {
@@ -114,13 +133,18 @@ export const PRODUCTION_CONFIRMATION_RECORDS: ProductionConfirmationRecord[] = [
 ];
 
 /**
- * Line-mapping anomaly (PRD §6.4): system routing says Line 02 for Counter
- * Displays, but 84% of actual historical runs happened on Line 01. Kept
- * separate from Line 03's Halloween capacity story so the two gaps don't
- * interfere with each other's numbers.
+ * Line-mapping anomaly (PRD §6.4): the routing master record sends PDQ
+ * counter displays to Reese L02, but 84% of the actual confirmations over
+ * the last 12 months ran on Reese L01 — same plant, different work centre,
+ * and a materially different rate (L01 runs displays ~8,500-9,100/hr
+ * against L02's ~6,800-7,150/hr, which is why nobody noticed: the work got
+ * done, just not where RCCP thinks it did).
+ *
+ * Kept separate from Line 03's Halloween capacity story so the two gaps
+ * never interfere with each other's numbers.
  */
 function generateLineMappingAnomaly(): ProductionConfirmationRecord[] {
-  const anchor = new Date("2027-08-24T00:00:00.000Z");
+  const anchor = new Date(DEMO_NOW);
   const total = 50;
   const onActualLine1 = Math.round(total * 0.84);
   const records: ProductionConfirmationRecord[] = [];
@@ -144,6 +168,48 @@ function generateLineMappingAnomaly(): ProductionConfirmationRecord[] {
 
 export const LINE_MAPPING_RECORDS: ProductionConfirmationRecord[] = generateLineMappingAnomaly();
 
+export interface LineMappingSummary {
+  totalConfirmations: number;
+  /** Confirmations whose actual work centre differs from the routed one. */
+  misroutedConfirmations: number;
+  /** Observed share of confirmations that ran off the routed line, 0-1. */
+  misroutedShare: number;
+  /** 80% Wald interval on that share — the honest spread on a 50-run sample. */
+  misroutedShareLow: number;
+  misroutedShareHigh: number;
+  /** Run hours that executed on the unrouted line — the RCCP-relevant magnitude. */
+  misroutedRuntimeHours: number;
+  totalRuntimeHours: number;
+  misroutedUnits: number;
+  totalUnits: number;
+}
+
+/**
+ * Aggregates the routing anomaly into the quantities a planner would act
+ * on. The share interval is a plain Wald interval at z=1.2816 (80%), not a
+ * decorative +/- — with n=50 the sample genuinely cannot pin the share
+ * tighter than a few points, and a single-point "84%" would overstate it.
+ */
+export function lineMappingSummary(): LineMappingSummary {
+  const records = LINE_MAPPING_RECORDS;
+  const misrouted = records.filter((r) => r.actualLineId != null && r.actualLineId !== r.lineId);
+  const n = records.length;
+  const p = n > 0 ? misrouted.length / n : 0;
+  const halfWidth = n > 0 ? 1.2816 * Math.sqrt((p * (1 - p)) / n) : 0;
+  const round1 = (x: number) => Math.round(x * 10) / 10;
+  return {
+    totalConfirmations: n,
+    misroutedConfirmations: misrouted.length,
+    misroutedShare: p,
+    misroutedShareLow: Math.max(0, Math.round((p - halfWidth) * 1000) / 1000),
+    misroutedShareHigh: Math.min(1, Math.round((p + halfWidth) * 1000) / 1000),
+    misroutedRuntimeHours: round1(misrouted.reduce((s, r) => s + r.runtimeHours, 0)),
+    totalRuntimeHours: round1(records.reduce((s, r) => s + r.runtimeHours, 0)),
+    misroutedUnits: misrouted.reduce((s, r) => s + r.quantityUnits, 0),
+    totalUnits: records.reduce((s, r) => s + r.quantityUnits, 0),
+  };
+}
+
 function percentile(sorted: number[], p: number): number {
   const idx = Math.min(sorted.length - 1, Math.max(0, Math.ceil((p / 100) * sorted.length) - 1));
   return sorted[idx] ?? 0;
@@ -166,7 +232,7 @@ export const OBSERVED_PERFORMANCE: ObservedPerformance[] = [
       scopeType: "material",
       scopeId: m.id,
       sampleCount: included.length,
-      dateRange: { start: "2026-08-24", end: "2027-08-24" },
+      dateRange: { start: OBSERVATION_WINDOW.start, end: OBSERVATION_WINDOW.end },
       statistic: "median",
       value: median(sorted),
       sourceRecordIds: included.map((p) => p.id),
@@ -181,7 +247,7 @@ export const OBSERVED_PERFORMANCE: ObservedPerformance[] = [
       scopeType: "line",
       scopeId: l.id,
       sampleCount: records.length,
-      dateRange: { start: "2026-08-24", end: "2027-08-24" },
+      dateRange: { start: OBSERVATION_WINDOW.start, end: OBSERVATION_WINDOW.end },
       statistic: "median",
       value: median(sorted),
       sourceRecordIds: records.map((r) => r.id),
@@ -193,7 +259,7 @@ export const OBSERVED_PERFORMANCE: ObservedPerformance[] = [
     scopeType: "product_family",
     scopeId: "fam_counter_displays",
     sampleCount: LINE_MAPPING_RECORDS.length,
-    dateRange: { start: "2026-08-24", end: "2027-08-24" },
+    dateRange: { start: OBSERVATION_WINDOW.start, end: OBSERVATION_WINDOW.end },
     statistic: "custom",
     value: LINE_MAPPING_RECORDS.filter((r) => r.actualLineId === "line_01").length / LINE_MAPPING_RECORDS.length,
     sourceRecordIds: LINE_MAPPING_RECORDS.map((r) => r.id),

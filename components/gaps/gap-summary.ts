@@ -1,6 +1,18 @@
 import type { GapDetectionResult } from "@/lib/planning-engine/gaps";
 import { getMethodology } from "@/lib/methodology/registry";
-import { fmtNum, fmtPct } from "@/lib/utils/format";
+import {
+  capacityEffectiveUtilizationPct,
+  capacityFormalUtilizationPct,
+  fmtUtilization,
+  formatGapQuantity,
+  formatReadinessCount,
+  isPercentUnit,
+  lineDisplayName,
+  roundTo,
+  summarizeBomReadiness,
+  worstCapacityImpact,
+} from "@/lib/gaps/gap-metrics";
+import { fmtNum } from "@/lib/utils/format";
 
 export function methodologyLabelFor(id: Parameters<typeof getMethodology>[0]): string {
   return getMethodology(id).shortName;
@@ -20,6 +32,13 @@ export function weeksFromNow(nowIso: string, dateIso: string): number {
  * flagged" / "operational consequence"). Deliberately NOT part of
  * PlanningGap itself — these are derived text for the grid, not domain
  * data, and every number in them traces back to a real gap field.
+ *
+ * Every figure quoted here now comes from lib/gaps/gap-metrics.ts, which is
+ * the same module the gap workspaces and category pages render from. That
+ * is the point: this file used to compute the capacity consequence itself,
+ * from `expectedValueHigh` (the P80), and label the answer "effective
+ * utilization" — so /decisions announced 98% while /overview and the gap
+ * workspace both said 92%, and the 98 had no derivation on any page.
  */
 export function gapWhyFlagged(r: GapDetectionResult): string {
   return r.planningBasis.whySelected;
@@ -28,21 +47,47 @@ export function gapWhyFlagged(r: GapDetectionResult): string {
 export function gapConsequence(r: GapDetectionResult): string {
   const g = r.gap;
   switch (g.type) {
-    case "demand":
-      return `${fmtNum(g.unresolvedValue)} ${g.unit} unresolved — Line 03 exceeds target once included`;
-    case "master_data":
-      return g.unit === "days"
-        ? `Decision deadline moves ${g.unresolvedValue} days earlier than the system assumption implies`
-        : `${Math.round(g.expectedValueHigh)}% of observed execution disagrees with the system routing`;
+    case "demand": {
+      const worst = worstCapacityImpact(r.scenarioResult);
+      return worst
+        ? `${fmtNum(g.unresolvedValue)} ${g.unit} unresolved — ${lineDisplayName(worst.lineId)} reaches ${fmtUtilization(worst.effectiveUtilization)} effective load once included`
+        : `${fmtNum(g.unresolvedValue)} ${g.unit} unresolved against the formal plan`;
+    }
+
+    case "master_data": {
+      if (g.unit === "days") {
+        return `Decision deadline moves ${g.unresolvedValue} days earlier than the system assumption implies`;
+      }
+      if (isPercentUnit(g.unit)) {
+        const low = roundTo(g.expectedValueLow, 1);
+        const high = roundTo(g.expectedValueHigh, 1);
+        const routed = g.lineId ? lineDisplayName(g.lineId) : "the routed work centre";
+        return `${low === high ? `${high}%` : `${low}–${high}%`} of confirmed execution ran off ${routed}, the work centre the routing books`;
+      }
+      return "Observed execution disagrees with the system master-data value";
+    }
+
     case "bom_uncertainty":
-    case "product_uncertainty":
-      return `${Math.round(g.confidence.overall * 100)}% of BOM value ready to plan now`;
+    case "product_uncertainty": {
+      // Component counts, not a percentage. materials.ts carries no cost per
+      // material, so no genuinely value-weighted readiness figure exists —
+      // the old "N% of BOM value ready to plan now" was the gap's overall
+      // confidence score wearing a value-weighted label.
+      const summary = summarizeBomReadiness(r.scenarioResult?.materialReadiness ?? []);
+      return summary.total > 0
+        ? `${formatReadinessCount(summary)} components stable enough to plan now · ${summary.review} to review · ${summary.wait} to wait`
+        : "No component rows resolved from the current analogue mix";
+    }
+
     case "capacity":
-      return `Effective utilization ${fmtPct(g.expectedValueHigh / 100)} vs. ${fmtPct(g.formalValue / 100)} formal`;
+      return `Effective utilization ${capacityEffectiveUtilizationPct(g)}% vs. ${capacityFormalUtilizationPct(g)}% formal`;
+
     case "representation":
-      return `${fmtNum(g.unresolvedValue)} ${g.unit} of expected volume has no formal SKU`;
+      return `${formatGapQuantity(g.unresolvedValue, g.unit).value} of expected volume has no formal SKU`;
+
     case "material":
-      return `${fmtNum(g.unresolvedValue)} ${g.unit} of material exposure not yet represented`;
+      return `${formatGapQuantity(g.unresolvedValue, g.unit).value} of material exposure not yet represented`;
+
     default:
       return "—";
   }

@@ -4,10 +4,17 @@ import { DEMO_NOW } from "./master-data";
 export const BASELINE_ID = "baseline";
 
 /**
- * One pre-saved scenario so Scenario Lab / Decisions don't open empty on
- * first load. Encodes the PRD's own worked examples verbatim: Line 03's
- * scenario run rate (§18.2: "Scenario 8,200/hr") and switching Printed
- * Film's lead-time basis to the historical P80 (§28.3).
+ * Two pre-saved scenarios so Scenario Lab / Decisions don't open empty on
+ * first load. They encode the PRD's own worked examples verbatim: Line 03's
+ * achievable scenario run rate (§18.2: "Scenario 8,200/hr") and the
+ * historical-P80 lead-time basis for Printed Seasonal Film (§28.3).
+ *
+ * The film override deliberately mirrors the accepted lead-time basis that
+ * gaps.ts::ACCEPTED_MASTER_ASSUMPTIONS also feeds into the Halloween
+ * baseline. Both surfaces therefore resolve Printed Seasonal Film to the
+ * same number of days and the same order-by date; the Halloween workspace
+ * can no longer show 42 days while the lead-time workspace shows the
+ * accepted basis.
  */
 export const SEED_SCENARIOS: Scenario[] = [
   {
@@ -27,8 +34,8 @@ export const SEED_SCENARIOS: Scenario[] = [
       },
     },
     status: "preferred",
-    note: "Tests whether accepting the historical P80 lead time for Printed Film, combined with Line 03's achievable scenario run rate, keeps the material deadline and capacity plan aligned.",
-    createdAt: "2027-08-20T14:00:00.000Z",
+    note: "Tests whether the historical P80 lead time for Printed Seasonal Film, combined with Line 03's achievable scenario run rate at Stuarts Draft, keeps the film order-by date and the June production peak aligned.",
+    createdAt: "2027-02-19T14:00:00.000Z",
     updatedAt: DEMO_NOW,
   },
   {
@@ -38,8 +45,8 @@ export const SEED_SCENARIOS: Scenario[] = [
     linkedGapIds: ["valentines-premium-tin"],
     overrides: {},
     status: "draft",
-    note: "Default AI-recommended analogue weighting (Mother's Day Tin 86%, Holiday Premium Tin 64% similarity-weighted) — open to reweight or swap analogues.",
-    createdAt: "2027-08-18T11:00:00.000Z",
+    note: "Default AI-recommended analogue weighting (Reese's Mother's Day Tin 86%, Kisses Holiday Tin 64% similarity-weighted) — open to reweight or swap analogues.",
+    createdAt: "2027-02-11T11:00:00.000Z",
     updatedAt: DEMO_NOW,
   },
 ];

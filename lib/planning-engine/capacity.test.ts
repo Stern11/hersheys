@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { rccp } from "./capacity";
+import { rccp, resolveRunRate } from "./capacity";
 import type { CapacityBucket, ProductionLine } from "@/types/planning";
 
 const line: ProductionLine = {
@@ -62,5 +62,118 @@ describe("rccp — capacity-hour conversion (volume ÷ run rate = required hours
     expect(withShift.ceilingHours).toBe(withoutShift.ceilingHours + 40);
     expect(withShift.formalLoadHours).toBe(withoutShift.formalLoadHours);
     expect(withShift.effectiveUtilization).toBeLessThan(withoutShift.effectiveUtilization);
+  });
+});
+
+/* ---------------------------------------------------------------------- *
+ * Punch item 2 — the custom run-rate input was dead.
+ *
+ * setRunRate() wrote capacity["line:period"].runRateUnitsPerHour, which rccp
+ * only consulted when the basis was NOT "scenario" — while the input that
+ * called it was only rendered when the basis WAS "scenario". These tests fail
+ * if that split ever comes back: they assert that a scenario run rate moves
+ * effectiveUtilization at all, and that it moves it in the right direction.
+ * ---------------------------------------------------------------------- */
+
+describe("resolveRunRate — one field, one reader", () => {
+  it("uses the scenario value when the basis is 'scenario'", () => {
+    expect(resolveRunRate({ line, runRateOverride: { selectedBasis: "scenario", scenarioValue: 6_000 }, observedMedianRunRate: 7_950 })).toEqual({
+      unitsPerHour: 6_000,
+      basis: "scenario",
+      source: "scenario_value",
+    });
+  });
+
+  it("uses the scenario value even when a stale bucket-level rate is also present", () => {
+    // The exact collision that made the input dead: two stored numbers, one
+    // reader. The basis selection must win.
+    const r = resolveRunRate({
+      line,
+      runRateOverride: { selectedBasis: "scenario", scenarioValue: 6_000 },
+      capacityOverride: { runRateUnitsPerHour: 20_000 },
+      observedMedianRunRate: 7_950,
+    });
+    expect(r.unitsPerHour).toBe(6_000);
+  });
+
+  it("falls back to the standard rate — never to zero — when 'scenario' is selected with no value", () => {
+    const r = resolveRunRate({ line, runRateOverride: { selectedBasis: "scenario" }, observedMedianRunRate: 7_950 });
+    expect(r.unitsPerHour).toBe(line.standardRunRateUnitsPerHour);
+    expect(r.source).toBe("line_standard");
+  });
+
+  it("uses the observed median on the historical basis, and the standard rate on the system basis", () => {
+    expect(resolveRunRate({ line, runRateOverride: { selectedBasis: "historical" }, observedMedianRunRate: 7_950 }).unitsPerHour).toBe(7_950);
+    expect(resolveRunRate({ line, observedMedianRunRate: 7_950 }).unitsPerHour).toBe(10_000);
+  });
+});
+
+describe("rccp — a scenario run rate actually moves effective utilization", () => {
+  const at = (unitsPerHour?: number) =>
+    rccp({
+      bucket,
+      line,
+      aiInferredUnresolvedUnits: 620_000,
+      observedMedianRunRate: 7_950,
+      runRateOverride: unitsPerHour == null ? undefined : { selectedBasis: "scenario", scenarioValue: unitsPerHour },
+    });
+
+  it("changes effective utilization when a scenario run rate is set", () => {
+    expect(at(6_000).effectiveUtilization).not.toBe(at().effectiveUtilization);
+  });
+
+  it("raises utilization as the run rate FALLS — the same units need more hours", () => {
+    const slow = at(6_000);
+    const standard = at();
+    const fast = at(20_000);
+    expect(slow.effectiveUtilization).toBeGreaterThan(standard.effectiveUtilization);
+    expect(fast.effectiveUtilization).toBeLessThan(standard.effectiveUtilization);
+    // 620,000 units at 6,000/hr is 103.3 hours, vs 62 at the 10,000 standard.
+    expect(slow.aiInferredLoadHours).toBeCloseTo(620_000 / 6_000, 1);
+    expect(slow.runRateUnitsPerHour).toBe(6_000);
+    expect(slow.runRateSource).toBe("scenario_value");
+  });
+
+  it("reports the rate it used, so a surface cannot label the wrong basis", () => {
+    expect(at().runRateBasis).toBe("system");
+    expect(at(8_200).runRateBasis).toBe("scenario");
+  });
+});
+
+/* ---------------------------------------------------------------------- *
+ * Punch item 3 — the utilization alert threshold.
+ *
+ * It is NOT a load lever (by design: a threshold cannot move the number it
+ * judges), but it must clamp, and crossing it must demonstrably change the
+ * risk classification.
+ * ---------------------------------------------------------------------- */
+
+describe("rccp — utilization alert threshold", () => {
+  const withThreshold = (targetUtilization: number) =>
+    rccp({ bucket, line, aiInferredUnresolvedUnits: 620_000, observedMedianRunRate: 7_950, capacityOverride: { targetUtilization } });
+
+  it("clamps a negative threshold to 0% and a 200% threshold to 100%", () => {
+    expect(withThreshold(-0.1).targetUtilization).toBe(0);
+    expect(withThreshold(2).targetUtilization).toBe(1);
+  });
+
+  it("does not move effective utilization — a threshold judges load, it does not create it", () => {
+    expect(withThreshold(0.5).effectiveUtilization).toBe(withThreshold(1).effectiveUtilization);
+  });
+
+  it("flips riskLevel when the threshold crosses the line's effective utilization", () => {
+    const effective = withThreshold(0.9).effectiveUtilization;
+    expect(effective).toBeGreaterThan(0.5);
+    expect(effective).toBeLessThan(1);
+    // Threshold BELOW effective load -> the line is flagged.
+    expect(withThreshold(0.5).riskLevel).toBe("warning");
+    // Threshold ABOVE effective load -> the line is within its own headroom.
+    expect(withThreshold(1).riskLevel).toBe("positive");
+  });
+
+  it("keeps a ceiling breach 'critical' regardless of the threshold", () => {
+    const breach = rccp({ bucket, line, aiInferredUnresolvedUnits: 1_500_000, observedMedianRunRate: 7_950, capacityOverride: { targetUtilization: 1 } });
+    expect(breach.effectiveUtilization).toBeGreaterThan(1);
+    expect(breach.riskLevel).toBe("critical");
   });
 });

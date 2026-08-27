@@ -1,5 +1,6 @@
 "use client";
 
+import { Check } from "lucide-react";
 import type { HistoricalPeriod } from "@/types/planning";
 import type { HistoricalBasisOverride } from "@/types/scenario";
 import { Badge } from "@/components/ui/badge";
@@ -41,20 +42,32 @@ export function HistoricalBasisEditor({
       </AssumptionControl>
 
       <div className="flex flex-col gap-1.5">
-        <span className="text-[11px] font-medium uppercase tracking-wide text-[var(--text-muted)]">Seasons</span>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex items-baseline justify-between">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-[var(--text-muted)]">Seasons in basis</span>
+          <span className="text-[11px] tabular-nums text-[var(--text-muted)]">
+            {periods.filter((p) => !(p.isAtypical ? !included.has(p.id) : excluded.has(p.id))).length} of {periods.length}
+          </span>
+        </div>
+        <div className="flex flex-col gap-1">
           {periods.map((p) => {
             const isExcluded = p.isAtypical ? !included.has(p.id) : excluded.has(p.id);
             return (
               <button
                 key={p.id}
                 onClick={() => onTogglePeriod(p.id, isExcluded)}
-                className="group flex items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border)] px-2 py-1 text-[11.5px] transition-colors hover:border-[var(--border-strong)]"
-                style={{ opacity: isExcluded ? 0.5 : 1 }}
+                aria-pressed={!isExcluded}
+                title={isExcluded ? `Click to include ${p.periodLabel}` : `Click to exclude ${p.periodLabel}`}
+                className={`flex items-center gap-2 rounded-[var(--radius-sm)] border px-2 py-1.5 text-[11.5px] transition-colors ${
+                  isExcluded
+                    ? "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-strong)]"
+                    : "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text-primary)]"
+                }`}
               >
-                {p.periodLabel}
+                <span className={`flex size-3.5 flex-none items-center justify-center rounded-[3px] border ${isExcluded ? "border-[var(--border-strong)]" : "border-[var(--accent)] bg-[var(--accent)]"}`}>
+                  {!isExcluded && <Check className="size-2.5 text-[var(--text-on-accent)]" />}
+                </span>
+                <span className={`flex-1 text-left ${isExcluded ? "line-through" : "font-medium"}`}>{p.periodLabel}</span>
                 {p.isAtypical && <Badge variant="warning">atypical</Badge>}
-                <span className="text-[var(--text-muted)] group-hover:text-[var(--text-primary)]">{isExcluded ? "Include" : "Exclude"}</span>
               </button>
             );
           })}

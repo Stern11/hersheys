@@ -5,6 +5,7 @@ import { useScenarioStore } from "@/stores/scenario-store";
 import { purchaseOrdersForMaterial, leadTimeStatisticForSample } from "@/data/synthetic/execution-history";
 import { resolveLeadTimeDays, decisionDeadlineFromLeadTime, weeksBetween } from "@/lib/planning-engine/lead-times";
 import { EVENTS } from "@/data/synthetic/events";
+import { productById } from "@/data/synthetic/products";
 import { DEMO_NOW } from "@/data/synthetic/master-data";
 import { fmtDate } from "@/lib/utils/format";
 import { GapWorkspaceShell } from "./gap-workspace-shell";
@@ -62,7 +63,7 @@ export function PrintedFilmWorkspace({ result, material }: { result: GapDetectio
       planningBasis={planningBasis}
       evidence={evidence}
       metrics={metrics}
-      situation={`ERP carries a ${material.systemLeadTimeDays}-day lead time for Printed Film, but ${sample.sampleCount} non-outlier receipts over the last year show a ${sample.median}-day median and a ${sample.p80}-day P80 — the system assumption may be optimistic by ${sample.p80 - material.systemLeadTimeDays} days.${isOverdue ? " Under the true historical P80, the order-by date for the Halloween production window has already passed." : ""}`}
+      situation={`ERP carries a ${material.systemLeadTimeDays}-day lead time for ${material.name}, but ${sample.sampleCount} non-outlier receipts over the last year show a ${sample.median}-day median and a ${sample.p80}-day P80 — the system assumption may be optimistic by ${sample.p80 - material.systemLeadTimeDays} days.${isOverdue ? " Under the true historical P80, the order-by date for the Halloween production window has already passed." : ""}`}
       scenarioHref={`/scenario-lab/${SCENARIO_ID}`}
     >
       <GapSection title="Lead-time distribution" description="Every non-outlier receipt in the sample, with System / Historical / Scenario overlaid">
@@ -91,7 +92,10 @@ export function PrintedFilmWorkspace({ result, material }: { result: GapDetectio
         </GapSection>
       )}
 
-      <GapSection title="Deadline consequence" description="Production timing this material feeds (Halloween Variety Bag) vs. when the order must go out under the active basis">
+      <GapSection
+        title="Deadline consequence"
+        description={`Production timing this material feeds (${productById("prod_halloween_variety_classic").name}) vs. when the order must go out under the active basis`}
+      >
         <DecisionRunwayTimeline
           today={DEMO_NOW.slice(0, 10)}
           deadlines={[

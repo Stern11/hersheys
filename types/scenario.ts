@@ -123,6 +123,14 @@ export interface CapacityImpactByLine {
   p50Utilization: number;
   p80Utilization: number;
   riskLevel: "positive" | "warning" | "critical";
+  /**
+   * The rate the volume->hours conversion actually divided by, and where that
+   * rate came from — see capacity.ts::resolveRunRate. Always populated by
+   * rccp(); optional only so hand-built fixtures elsewhere stay valid.
+   */
+  runRateUnitsPerHour?: number;
+  runRateBasis?: "system" | "historical" | "scenario";
+  runRateSource?: "scenario_value" | "observed_median" | "line_period_rate" | "line_standard";
 }
 
 export interface MaterialExposureByMaterial {
@@ -142,6 +150,39 @@ export interface ScenarioRisk {
   relatedEntityId: string;
 }
 
+/**
+ * Whether the scenario's forecast basis is strong enough to produce a number
+ * at all. A planner who excludes every comparable season must see "no basis",
+ * not a confident-looking "0–0 units" — an empty basis and a genuine zero
+ * forecast are different facts and must not render identically.
+ */
+export interface ScenarioBasisStatus {
+  /** Comparable seasons that survive the atypical/exclusion filters. */
+  seasonsAvailable: number;
+  /** Seasons the forecast actually read after the lookback window was applied. */
+  seasonsUsed: number;
+  /** The lookback the scenario asked for (undefined = "use everything available"). */
+  seasonsRequested?: number;
+  /** False when the derived demand figures carry no basis and must not be displayed as a forecast. */
+  sufficient: boolean;
+  /** Planner-readable reasons the basis is insufficient or degraded. Empty when healthy. */
+  issues: string[];
+}
+
+/**
+ * Readiness bucket counts. INVARIANT: planNow + review + wait + unknown ===
+ * total. Surfaces that render only three buckets silently lose every
+ * "unknown" row (a component no active analogue evidences), which is how
+ * "6 of 7 components" happened.
+ */
+export interface ReadinessCounts {
+  planNow: number;
+  review: number;
+  wait: number;
+  unknown: number;
+  total: number;
+}
+
 export interface ScenarioResult {
   scenarioId: string;
   expectedDemandUnits: { low: number; base: number; high: number };
@@ -152,6 +193,12 @@ export interface ScenarioResult {
   decisionDeadlines: DecisionDeadline[];
   confidence: Confidence;
   materialReadiness: MaterialReadiness[];
+  /** Single source for readiness bucket counts — always sums to `total`. */
+  readinessCounts: ReadinessCounts;
+  /** Mean component confidence across the resolved BOM, 0-1. 0 when there is no BOM. */
+  bomReadinessScore: number;
+  /** Whether the forecast basis supports the demand figures above. */
+  basis: ScenarioBasisStatus;
   risks: ScenarioRisk[];
   methodologyTrace: MethodologyTraceEntry[];
   calculatedAt: string;

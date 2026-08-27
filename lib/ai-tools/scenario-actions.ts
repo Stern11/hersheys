@@ -15,9 +15,9 @@ export function createScenarioTools(): AIToolDefinition<any, any>[] {
   return [
     {
       name: "setHistoricalLookback",
-      description: "Set how many comparable historical seasons/years feed the forecast for a scenario.",
+      description: "Set how many comparable historical seasons/years feed the forecast for a scenario. Returns the value that was ACTUALLY applied: a lookback longer than the number of comparable seasons available is clamped, and `clamped`/`reason` say so — never report success for a request the engine could not honor.",
       category: "scenario",
-      parametersSchema: z.object({ scenarioId: z.string(), seasonsOrYears: z.number().int().positive() }),
+      parametersSchema: z.object({ scenarioId: z.string(), seasonsOrYears: z.number() }),
       execute: ({ scenarioId, seasonsOrYears }: { scenarioId: string; seasonsOrYears: number }) => store().setHistoricalLookback(scenarioId, seasonsOrYears),
     },
     {
@@ -36,14 +36,14 @@ export function createScenarioTools(): AIToolDefinition<any, any>[] {
     },
     {
       name: "setSeasonalUplift",
-      description: "Apply a seasonal uplift percentage on top of the forecast base.",
+      description: "Apply a seasonal uplift on top of the forecast base (fraction; clamped to -0.5..0.5). Returns the applied value plus `clamped`/`noop`.",
       category: "scenario",
       parametersSchema: z.object({ scenarioId: z.string(), pct: z.number() }),
       execute: ({ scenarioId, pct }: { scenarioId: string; pct: number }) => store().setSeasonalUplift(scenarioId, pct),
     },
     {
       name: "setGrowthAssumption",
-      description: "Override the business growth assumption applied to the forecast.",
+      description: "Override the business growth assumption applied to the forecast (fraction, e.g. 0.08 = +8%; clamped to -0.5..0.5). Returns the applied value plus `clamped`/`noop`.",
       category: "scenario",
       parametersSchema: z.object({ scenarioId: z.string(), pct: z.number() }),
       execute: ({ scenarioId, pct }: { scenarioId: string; pct: number }) => store().setGrowthAssumption(scenarioId, pct),
@@ -61,7 +61,7 @@ export function createScenarioTools(): AIToolDefinition<any, any>[] {
       name: "setAnalogueWeight",
       description: "Set the weight of a single analogue product.",
       category: "scenario",
-      parametersSchema: z.object({ scenarioId: z.string(), analogueProductId: z.string(), weight: z.number().min(0).max(1) }),
+      parametersSchema: z.object({ scenarioId: z.string(), analogueProductId: z.string(), weight: z.number() }),
       execute: ({ scenarioId, analogueProductId, weight }: { scenarioId: string; analogueProductId: string; weight: number }) => store().setAnalogueWeight(scenarioId, analogueProductId, weight),
     },
     {
@@ -80,9 +80,11 @@ export function createScenarioTools(): AIToolDefinition<any, any>[] {
     },
     {
       name: "setLeadTime",
-      description: "Set a specific scenario lead-time value (days) for a material, overriding both system and historical.",
+      description: "Set a specific scenario lead-time value (days, 1-365) for a material, overriding both system and historical. Returns the applied value plus `clamped`/`noop`.",
       category: "scenario",
-      parametersSchema: z.object({ scenarioId: z.string(), materialId: z.string(), days: z.number().positive() }),
+      // Out-of-range values are CLAMPED by the store and reported, not rejected
+      // here with an opaque schema error - the planner gets told what was applied.
+      parametersSchema: z.object({ scenarioId: z.string(), materialId: z.string(), days: z.number() }),
       execute: ({ scenarioId, materialId, days }: { scenarioId: string; materialId: string; days: number }) => store().setLeadTime(scenarioId, materialId, days),
     },
     {
@@ -100,23 +102,23 @@ export function createScenarioTools(): AIToolDefinition<any, any>[] {
     },
     {
       name: "setRunRate",
-      description: "Set a line's run rate (units/hour) for a given period in this scenario.",
+      description: "Set a line's scenario run rate in units/hour (100-100,000). This is the ONE writer for a scenario run rate: it stores masterAssumptions['line:{lineId}:run_rate'].scenarioValue and switches that line to the scenario basis, which is the field the RCCP conversion reads. Returns the applied value plus `clamped`/`noop` - `noop: true` means the rate already held this value and NOTHING changed, so do not report a change.",
       category: "scenario",
-      parametersSchema: z.object({ scenarioId: z.string(), lineId: z.string(), period: z.string(), unitsPerHour: z.number().positive() }),
+      parametersSchema: z.object({ scenarioId: z.string(), lineId: z.string(), period: z.string(), unitsPerHour: z.number() }),
       execute: ({ scenarioId, lineId, period, unitsPerHour }: { scenarioId: string; lineId: string; period: string; unitsPerHour: number }) => store().setRunRate(scenarioId, lineId, period, unitsPerHour),
     },
     {
       name: "setLineAllocation",
       description: "Set the share of a gap's unresolved demand allocated to a specific line/period.",
       category: "scenario",
-      parametersSchema: z.object({ scenarioId: z.string(), lineId: z.string(), period: z.string(), share: z.number().min(0).max(1) }),
+      parametersSchema: z.object({ scenarioId: z.string(), lineId: z.string(), period: z.string(), share: z.number() }),
       execute: ({ scenarioId, lineId, period, share }: { scenarioId: string; lineId: string; period: string; share: number }) => store().setLineAllocation(scenarioId, lineId, period, share),
     },
     {
       name: "setTargetUtilization",
-      description: "Set the target utilization / headroom threshold for a line/period.",
+      description: "Set the utilization ALERT THRESHOLD for a line/period, as a fraction 0-1. It changes risk classification and the chart ceiling marker only - by design it does NOT change modeled load or effective utilization, so never claim it lowered utilization. Returns the applied value plus `clamped`/`noop`.",
       category: "scenario",
-      parametersSchema: z.object({ scenarioId: z.string(), lineId: z.string(), period: z.string(), pct: z.number().min(0).max(2) }),
+      parametersSchema: z.object({ scenarioId: z.string(), lineId: z.string(), period: z.string(), pct: z.number() }),
       execute: ({ scenarioId, lineId, period, pct }: { scenarioId: string; lineId: string; period: string; pct: number }) => store().setTargetUtilization(scenarioId, lineId, period, pct),
     },
     {
@@ -160,6 +162,42 @@ export function createScenarioTools(): AIToolDefinition<any, any>[] {
       category: "scenario",
       parametersSchema: z.object({ scenarioId: z.string() }),
       execute: ({ scenarioId }: { scenarioId: string }) => store().resetScenario(scenarioId),
+    },
+    {
+      name: "saveScenario",
+      description: "Save the scenario. A draft becomes 'saved'; an already validated/preferred scenario keeps its standing rather than being demoted. The change is durable across navigation. Returns the resulting status.",
+      category: "scenario",
+      parametersSchema: z.object({ scenarioId: z.string() }),
+      execute: ({ scenarioId }: { scenarioId: string }) => store().saveScenario(scenarioId),
+    },
+    {
+      /**
+       * A READ tool, deliberately. Without it the copilot could only report
+       * what it INTENDED to do — which is how "what if I use 5 seasons" came
+       * back as a success for a change that moved nothing (only three
+       * comparable seasons exist, so the request was a no-op). Call this
+       * before and after a change and report the difference, or the absence
+       * of one.
+       */
+      name: "getScenarioState",
+      description:
+        "Read a scenario's current assumptions WITHOUT changing anything: its meaningful override count, the individual baseline->scenario differences, and how many comparable historical seasons its basis can actually read (the ceiling on any lookback). Use this to verify that a requested change actually changed something before reporting success.",
+      category: "scenario",
+      parametersSchema: z.object({ scenarioId: z.string() }),
+      execute: ({ scenarioId }: { scenarioId: string }) => {
+        const s = store();
+        const scenario = s.scenarios[scenarioId];
+        if (!scenario) return { found: false as const };
+        return {
+          found: true as const,
+          name: scenario.name,
+          status: scenario.status,
+          overrideCount: s.overrideCount(scenarioId),
+          overrides: s.overrideDiffs(scenarioId),
+          availableSeasons: s.availableSeasons(scenarioId),
+          requestedSeasons: scenario.overrides.historicalBasis?.seasonsOrYears ?? null,
+        };
+      },
     },
   ];
 }

@@ -49,9 +49,9 @@ export function LeadTimeBasisEditor({
       />
 
       <AssumptionControl label="Planning basis" baseline={`System (${material.systemLeadTimeDays}d)`} scenario={`${basisLabel(basis, statistic)} (${activeValue}d)`} delta={`${activeValue - material.systemLeadTimeDays >= 0 ? "+" : ""}${activeValue - material.systemLeadTimeDays}d`} changed={basis !== "system"}>
-        <div className="flex gap-2">
+        <div className="flex min-w-0 gap-2">
           <Select value={basis === "historical" ? `historical_${statistic}` : basis} onValueChange={(v) => (v.startsWith("historical") ? onSetBasis("historical", v.endsWith("p80") ? "p80" : "median") : onSetBasis(v as "system" | "scenario"))}>
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="min-w-0 flex-1">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -66,7 +66,7 @@ export function LeadTimeBasisEditor({
               type="number"
               value={override?.scenarioValue ?? material.systemLeadTimeDays}
               onChange={(e) => onSetScenarioValue(Number(e.target.value))}
-              className="h-8 w-20 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2 text-[13px] tabular-nums outline-none focus-visible:border-[var(--ring)]"
+              className="h-8 w-16 flex-none rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2 text-[13px] tabular-nums outline-none focus-visible:border-[var(--ring)]"
             />
           )}
         </div>
@@ -92,5 +92,5 @@ export function LeadTimeBasisEditor({
 function basisLabel(basis: "system" | "historical" | "scenario", statistic: "median" | "p80" | "custom"): string {
   if (basis === "system") return "System";
   if (basis === "historical") return statistic === "p80" ? "Historical P80" : "Historical median";
-  return "Scenario";
+  return "Custom";
 }

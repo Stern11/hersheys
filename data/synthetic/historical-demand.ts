@@ -1,9 +1,15 @@
 import type { HistoricalPeriod } from "@/types/planning";
 
 /**
- * Prior-season actuals. Halloween is shaped so a recent-weighted seasonal
- * forecast lands near the PRD's stated expected range (4.5-4.9M) against
- * the 3.8M formal plan (§11.2, §28.1).
+ * Prior-season actuals. `start`/`end` on a HistoricalPeriod are its
+ * SELL-THROUGH window (POS / sell-out), not the window the volume was
+ * produced in — a Halloween season shipped Jul-Sep sells Sep-Oct, and the
+ * two must never be joined. Production windows live on BusinessEvent.
+ *
+ * Halloween is shaped so a recent-weighted seasonal forecast lands on the
+ * PRD's stated expected range (4.56-4.94M) against the 3.8M formal plan
+ * (§11.2, §28.1): recent-weighted mean of 4.55M / 4.35M / 4.05M is 4.40M,
+ * +8% growth gives 4,752,000, and a +/-4% band gives 4,561,920-4,942,080.
  */
 export const HISTORICAL_PERIODS: HistoricalPeriod[] = [
   {
@@ -11,7 +17,7 @@ export const HISTORICAL_PERIODS: HistoricalPeriod[] = [
     eventId: "evt_halloween_2027",
     productFamilyId: "fam_variety_bags",
     periodLabel: "Halloween 2024",
-    start: "2024-09-15",
+    start: "2024-09-01",
     end: "2024-10-31",
     actualUnits: 4_050_000,
     actualValue: 14_580_000,
@@ -22,7 +28,7 @@ export const HISTORICAL_PERIODS: HistoricalPeriod[] = [
     eventId: "evt_halloween_2027",
     productFamilyId: "fam_variety_bags",
     periodLabel: "Halloween 2025",
-    start: "2025-09-15",
+    start: "2025-09-01",
     end: "2025-10-31",
     actualUnits: 4_350_000,
     actualValue: 15_950_000,
@@ -33,7 +39,7 @@ export const HISTORICAL_PERIODS: HistoricalPeriod[] = [
     eventId: "evt_halloween_2027",
     productFamilyId: "fam_variety_bags",
     periodLabel: "Halloween 2026",
-    start: "2026-09-15",
+    start: "2026-09-01",
     end: "2026-10-31",
     actualUnits: 4_550_000,
     actualValue: 17_030_000,
@@ -44,12 +50,12 @@ export const HISTORICAL_PERIODS: HistoricalPeriod[] = [
     eventId: "evt_halloween_2027",
     productFamilyId: "fam_variety_bags",
     periodLabel: "Halloween 2023",
-    start: "2023-09-15",
+    start: "2023-09-01",
     end: "2023-10-31",
     actualUnits: 3_180_000,
     actualValue: 11_200_000,
     isAtypical: true,
-    atypicalReason: "Regional co-manufacturer outage suppressed volume; not representative of normal demand.",
+    atypicalReason: "Peanut-paste supply interruption cut the Stuarts Draft seasonal build short; sell-out was supply-capped, not demand-capped, so the season does not represent normal demand.",
   },
   {
     id: "hist_holiday_2024",
@@ -89,7 +95,7 @@ export const HISTORICAL_PERIODS: HistoricalPeriod[] = [
     eventId: "evt_valentines_2028",
     productFamilyId: "fam_gift_tins",
     periodLabel: "Valentine's 2025",
-    start: "2025-01-15",
+    start: "2025-01-02",
     end: "2025-02-14",
     actualUnits: 1_120_000,
     actualValue: 9_760_000,
@@ -100,7 +106,7 @@ export const HISTORICAL_PERIODS: HistoricalPeriod[] = [
     eventId: "evt_valentines_2028",
     productFamilyId: "fam_gift_tins",
     periodLabel: "Valentine's 2026",
-    start: "2026-01-15",
+    start: "2026-01-02",
     end: "2026-02-14",
     actualUnits: 1_205_000,
     actualValue: 10_580_000,
@@ -111,7 +117,7 @@ export const HISTORICAL_PERIODS: HistoricalPeriod[] = [
     eventId: "evt_valentines_2028",
     productFamilyId: "fam_gift_tins",
     periodLabel: "Valentine's 2027",
-    start: "2027-01-15",
+    start: "2027-01-02",
     end: "2027-02-14",
     actualUnits: 1_275_000,
     actualValue: 11_340_000,
