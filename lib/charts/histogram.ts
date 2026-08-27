@@ -94,3 +94,44 @@ export function buildHistogramModel(
     sampleCount: values.filter(Number.isFinite).length,
   };
 }
+
+/* ---------------------------------------------------------------------- *
+ * Lead-time basis markers — punch item 13.
+ * ---------------------------------------------------------------------- */
+
+export interface LeadTimeMarkerSet {
+  markers: HistogramMarkerInput[];
+  /** The caption, listing ONLY the bases actually drawn. */
+  caption: string;
+}
+
+/**
+ * The reference lines overlaid on the lead-time distribution, plus the
+ * caption that names them.
+ *
+ * The audit found the caption promising "System / Historical / Scenario
+ * overlaid" on a chart that only ever drew System, Median and P80: there is
+ * no scenario marker to draw until a planner actually enters a scenario lead
+ * time, so the caption named a line that could not exist. Nothing errored —
+ * the planner just looked for a third basis that was never there.
+ *
+ * So the caption is DERIVED from the marker list rather than written beside
+ * it. A scenario marker appears only when `scenarioDays` is a real, finite,
+ * positive override, and the caption gains "Scenario" at exactly the same
+ * moment. The two cannot disagree because they are the same list.
+ */
+export function leadTimeBasisMarkers(args: { systemDays: number; medianDays: number; p80Days: number; scenarioDays?: number | null }): LeadTimeMarkerSet {
+  const markers: HistogramMarkerInput[] = [
+    { label: "System", value: args.systemDays, token: "--state-formal" },
+    { label: "Median", value: args.medianDays, token: "--state-historical" },
+    { label: "P80", value: args.p80Days, token: "--state-inferred" },
+  ];
+  const scenario = args.scenarioDays;
+  if (scenario != null && Number.isFinite(scenario) && scenario > 0) {
+    markers.push({ label: "Scenario", value: scenario, token: "--state-scenario" });
+  }
+  return {
+    markers,
+    caption: `Every non-outlier receipt in the sample, with ${markers.map((m) => m.label).join(" / ")} overlaid`,
+  };
+}

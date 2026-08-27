@@ -19,7 +19,11 @@ export const BASELINE_ID = "baseline";
 export const SEED_SCENARIOS: Scenario[] = [
   {
     id: "scn_halloween_line03_relief",
-    name: "Line 03 relief — P80 lead time + scenario run rate",
+    // The id is a stable route slug and must not change. The NAME is
+    // user-facing, so it uses the line's real master-data name ("Stuarts
+    // Draft L03") rather than the pre-rename "Line 03" every other surface
+    // stopped showing.
+    name: "Stuarts Draft L03 relief — P80 lead time + scenario run rate",
     baselineId: BASELINE_ID,
     linkedGapIds: ["halloween-2027", "printed-film-lead-time"],
     overrides: {
@@ -34,7 +38,7 @@ export const SEED_SCENARIOS: Scenario[] = [
       },
     },
     status: "preferred",
-    note: "Tests whether the historical P80 lead time for Printed Seasonal Film, combined with Line 03's achievable scenario run rate at Stuarts Draft, keeps the film order-by date and the June production peak aligned.",
+    note: "Tests whether the historical P80 lead time for Printed Seasonal Film, combined with Stuarts Draft L03's achievable scenario run rate, keeps the film order-by date and the June production peak aligned.",
     createdAt: "2027-02-19T14:00:00.000Z",
     updatedAt: DEMO_NOW,
   },

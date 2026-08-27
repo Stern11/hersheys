@@ -425,7 +425,7 @@ const LINE03_CAPACITY_BASIS: PlanningBasis = {
   methodologyIds: ["rccp", "production_leveling"],
   primaryMethodologyId: "rccp",
   whySelected:
-    "Rough-cut capacity, run against the PRODUCTION bucket rather than the sell-through month: Halloween units are built Mar-Jul and Line 03 at Stuarts Draft carries 65% of the seasonal allocation, peaking in June. Committed hours, planned downtime and formal load come straight from the June bucket; the unresolved Halloween volume is converted to hours at the line's run rate and stacked on top, so the line's true position is visible before the build is committed. Line 04 is the leveling candidate because it is the only eligible line with headroom in the same month.",
+    "Rough-cut capacity, run against the PRODUCTION bucket rather than the sell-through month: Halloween units are built Mar-Jul and Stuarts Draft L03 carries 65% of the seasonal allocation, peaking in June. Committed hours, planned downtime and formal load come straight from the June bucket; the unresolved Halloween volume is converted to hours at the line's run rate and stacked on top, so the line's true position is visible before the build is committed. West Hershey L04 is the leveling candidate because it is the only eligible line with headroom in the same month.",
   filters: { lineIds: ["line_03"], productFamilyIds: ["fam_variety_bags"] },
   plannerOverrides: [],
 };

@@ -12,6 +12,7 @@ import { GapWorkspaceShell } from "./gap-workspace-shell";
 import { GapSection } from "./gap-section";
 import { LeadTimeBasisEditor } from "@/components/planning/lead-time-basis-editor";
 import { LeadTimeHistogram } from "@/components/planning/lead-time-histogram";
+import { leadTimeBasisMarkers } from "@/lib/charts/histogram";
 import { DecisionRunwayTimeline } from "@/components/planning/decision-runway-timeline";
 import type { Material } from "@/types/planning";
 import type { MetricBandItem } from "@/components/planning/metric-band";
@@ -47,6 +48,15 @@ export function PrintedFilmWorkspace({ result, material }: { result: GapDetectio
     .filter((p) => !p.excluded)
     .map((p) => p.elapsedDays);
 
+  // Markers and their caption come from one list, so the chart can never
+  // advertise a basis it does not draw (punch item 13).
+  const leadTimeMarkers = leadTimeBasisMarkers({
+    systemDays: material.systemLeadTimeDays,
+    medianDays: sample.median,
+    p80Days: sample.p80,
+    scenarioDays: override?.selectedBasis === "scenario" ? override.scenarioValue : null,
+  });
+
   const isOverdue = weeksRemaining < 0;
   const metrics: MetricBandItem[] = [
     { label: "System assumption", value: `${material.systemLeadTimeDays}d` },
@@ -66,16 +76,9 @@ export function PrintedFilmWorkspace({ result, material }: { result: GapDetectio
       situation={`ERP carries a ${material.systemLeadTimeDays}-day lead time for ${material.name}, but ${sample.sampleCount} non-outlier receipts over the last year show a ${sample.median}-day median and a ${sample.p80}-day P80 — the system assumption may be optimistic by ${sample.p80 - material.systemLeadTimeDays} days.${isOverdue ? " Under the true historical P80, the order-by date for the Halloween production window has already passed." : ""}`}
       scenarioHref={`/scenario-lab/${SCENARIO_ID}`}
     >
-      <GapSection title="Lead-time distribution" description="Every non-outlier receipt in the sample, with System / Historical / Scenario overlaid">
+      <GapSection title="Lead-time distribution" description={leadTimeMarkers.caption}>
         <div className="flex flex-col gap-4">
-          <LeadTimeHistogram
-            values={allElapsed}
-            markers={[
-              { label: "System", value: material.systemLeadTimeDays, token: "--state-formal" },
-              { label: "Median", value: sample.median, token: "--state-historical" },
-              { label: "P80", value: sample.p80, token: "--state-inferred" },
-            ]}
-          />
+          <LeadTimeHistogram values={allElapsed} markers={leadTimeMarkers.markers} />
         </div>
       </GapSection>
 

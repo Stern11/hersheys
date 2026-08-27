@@ -118,7 +118,7 @@ export function targetUtilizationControlModel(args: { baselineTargetUtilization:
  * What actually happened to a control write.
  * ---------------------------------------------------------------------- */
 
-export type ControlNoticeTone = "clamped" | "noop" | "rejected";
+export type ControlNoticeTone = "clamped" | "noop" | "rejected" | "held";
 
 export interface ControlNotice {
   tone: ControlNoticeTone;
@@ -140,6 +140,40 @@ export function controlNotice(applied: AppliedChange | null | undefined, format:
   if (applied.clamped) return { tone: "clamped", text: applied.reason ?? `Applied ${format(applied.value)} instead of ${format(applied.requested)}.` };
   if (applied.noop) return { tone: "noop", text: `Already ${format(applied.value)} — nothing changed.` };
   return null;
+}
+
+/* ---------------------------------------------------------------------- *
+ * Typing into a clamped numeric field.
+ * ---------------------------------------------------------------------- */
+
+export interface DraftEvaluation {
+  /** The parsed number, or null for a blank/non-numeric draft. */
+  value: number | null;
+  /** True when the draft can be applied to the store as typed. */
+  inRange: boolean;
+  /** Shown while the draft is not yet applicable — never after a successful apply. */
+  hint: string | null;
+}
+
+/**
+ * Decides whether a partially-typed value should be pushed to the store yet.
+ *
+ * A clamped store plus a controlled input is a trap: typing "6000" into a
+ * field whose minimum is 100 would apply "6" as 100 on the first keystroke and
+ * fight the planner for the rest of the number. So an in-range draft applies
+ * immediately (the workspace moves as you type, which is the point of a
+ * scenario lab) and an out-of-range or half-typed draft is held with a visible
+ * hint until the field is committed, where the store clamps it and says so.
+ */
+export function evaluateDraft(raw: string, bounds: { min: number; max: number; format: (n: number) => string }): DraftEvaluation {
+  const trimmed = raw.trim();
+  if (trimmed === "") return { value: null, inRange: false, hint: `Enter a value between ${bounds.format(bounds.min)} and ${bounds.format(bounds.max)}.` };
+  const value = Number(trimmed);
+  if (!Number.isFinite(value)) return { value: null, inRange: false, hint: `That is not a number. Enter a value between ${bounds.format(bounds.min)} and ${bounds.format(bounds.max)}.` };
+  if (value < bounds.min || value > bounds.max) {
+    return { value, inRange: false, hint: `${bounds.format(value)} is outside ${bounds.format(bounds.min)}–${bounds.format(bounds.max)} — it will be clamped when you leave the field.` };
+  }
+  return { value, inRange: true, hint: null };
 }
 
 /* ---------------------------------------------------------------------- *

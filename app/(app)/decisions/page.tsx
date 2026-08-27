@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { CheckCircle2, Eye, EyeOff, Radar, ShieldCheck } from "lucide-react";
 import { detectPlanningGaps } from "@/lib/planning-engine/gaps";
+import { partitionGapsBySurface, triageBucketFor } from "@/lib/planning-engine/gap-counting";
 import { useAppStore } from "@/stores/app-store";
 import { useScenarioStore } from "@/stores/scenario-store";
 import { Badge } from "@/components/ui/badge";
@@ -22,11 +23,18 @@ export default function DecisionsPage() {
   const toggleIntentional = useAppStore((s) => s.toggleIntentional);
   const scenarios = useScenarioStore((s) => s.scenarios);
 
-  const decided = new Set([...monitoredGapIds, ...validatedGapIds, ...dismissedGapIds, ...intentionalGapIds]);
-  const open = results.filter((r) => !decided.has(r.gap.id));
-  const monitored = results.filter((r) => monitoredGapIds.includes(r.gap.id));
-  const validated = results.filter((r) => validatedGapIds.includes(r.gap.id));
-  const closed = results.filter((r) => dismissedGapIds.includes(r.gap.id) || intentionalGapIds.includes(r.gap.id));
+  // The SAME partition /gaps counts by (lib/planning-engine/gap-counting.ts).
+  // Triage buckets are built from `triageBucketFor`, so a gap marked both
+  // monitored and dismissed lands in exactly one section and the four counts
+  // always sum to the situation total — /gaps and /decisions can no longer
+  // print different numbers for the same plan.
+  const { situations, consequenceLenses } = partitionGapsBySurface(results);
+  const triage = { monitoredGapIds, validatedGapIds, dismissedGapIds, intentionalGapIds };
+  const bucketed = situations.map((r) => ({ r, bucket: triageBucketFor(r.gap.id, triage) }));
+  const open = bucketed.filter((b) => b.bucket === "open").map((b) => b.r);
+  const monitored = bucketed.filter((b) => b.bucket === "monitoring").map((b) => b.r);
+  const validated = bucketed.filter((b) => b.bucket === "validated").map((b) => b.r);
+  const closed = bucketed.filter((b) => b.bucket === "closed").map((b) => b.r);
   const savedScenarios = Object.values(scenarios).filter((s) => s.status !== "draft");
 
   return (
@@ -89,6 +97,22 @@ export default function DecisionsPage() {
             <DecisionRow key={r.gap.id} r={r} statusBadge="validated" actions={[{ label: "Unvalidate", icon: ShieldCheck, onClick: () => toggleValidated(r.gap.id) }]} />
           ))}
         </Section>
+      )}
+
+      {consequenceLenses.length > 0 && (
+        <section className="flex flex-col gap-2.5">
+          <div>
+            <h2 className="text-[13px] font-semibold">Operational consequences ({consequenceLenses.length})</h2>
+            <p className="text-[12px] text-[var(--text-muted)]">
+              What the situations above do to an operation. These are triaged through the situation that causes them, so they are listed separately and are not counted in Open.
+            </p>
+          </div>
+          <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-1">
+            {consequenceLenses.map((r) => (
+              <DecisionRow key={r.gap.id} r={r} actions={[]} />
+            ))}
+          </div>
+        </section>
       )}
 
       {closed.length > 0 && (

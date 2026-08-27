@@ -28,6 +28,7 @@ import {
   basisBanner,
   controlNotice,
   demandDisplay,
+  evaluateDraft,
   fmtRunRate,
   fmtThreshold,
   periodLabel,
@@ -73,6 +74,10 @@ export function ScenarioLabView({ scenarioId }: { scenarioId: string }) {
   const [confirmingReset, setConfirmingReset] = useState(false);
   const [runRateNotice, setRunRateNotice] = useState<ControlNotice | null>(null);
   const [thresholdNotice, setThresholdNotice] = useState<ControlNotice | null>(null);
+  // Draft text for the two clamped numeric fields. Null = show the stored
+  // value; a string = the planner is mid-keystroke.
+  const [runRateDraft, setRunRateDraft] = useState<string | null>(null);
+  const [thresholdDraft, setThresholdDraft] = useState<string | null>(null);
 
   /**
    * The copilot in the top bar answers about the ACTIVE scenario. Opening a
@@ -130,6 +135,9 @@ export function ScenarioLabView({ scenarioId }: { scenarioId: string }) {
     analogueWeights[a.candidateProductId] = scenario.overrides.analogues?.weights?.[a.candidateProductId] ?? a.similarityScore;
   });
 
+  const runRateBounds = { min: runRate.range.min, max: runRate.range.max, format: fmtRunRate };
+  const thresholdBounds = { min: threshold.minPct, max: threshold.maxPct, format: (n: number) => `${Math.round(n)}%` };
+
   function applyRunRate(value: number) {
     const applied: AppliedChange = setRunRate(scenarioId, LINE_03.id, period, value);
     setRunRateNotice(controlNotice(applied, fmtRunRate));
@@ -137,6 +145,34 @@ export function ScenarioLabView({ scenarioId }: { scenarioId: string }) {
   function applyThreshold(pct: number) {
     const applied: AppliedChange = setTargetUtilization(scenarioId, LINE_03.id, period, pct);
     setThresholdNotice(controlNotice(applied, fmtThreshold));
+  }
+
+  /** In-range keystrokes apply live; an out-of-range draft is held with a hint until commit. */
+  function onRunRateChange(raw: string) {
+    setRunRateDraft(raw);
+    const draft = evaluateDraft(raw, runRateBounds);
+    setRunRateNotice(draft.hint ? { tone: "held", text: draft.hint } : null);
+    if (draft.value != null && draft.inRange) applyRunRate(draft.value);
+  }
+  function commitRunRate() {
+    if (runRateDraft == null) return;
+    const draft = evaluateDraft(runRateDraft, runRateBounds);
+    if (draft.value != null) applyRunRate(draft.value);
+    else setRunRateNotice(null);
+    setRunRateDraft(null);
+  }
+  function onThresholdChange(raw: string) {
+    setThresholdDraft(raw);
+    const draft = evaluateDraft(raw, thresholdBounds);
+    setThresholdNotice(draft.hint ? { tone: "held", text: draft.hint } : null);
+    if (draft.value != null && draft.inRange) applyThreshold(draft.value / 100);
+  }
+  function commitThreshold() {
+    if (thresholdDraft == null) return;
+    const draft = evaluateDraft(thresholdDraft, thresholdBounds);
+    if (draft.value != null) applyThreshold(draft.value / 100);
+    else setThresholdNotice(null);
+    setThresholdDraft(null);
   }
 
   return (
@@ -212,6 +248,8 @@ export function ScenarioLabView({ scenarioId }: { scenarioId: string }) {
                   resetScenario(scenarioId);
                   setRunRateNotice(null);
                   setThresholdNotice(null);
+                  setRunRateDraft(null);
+                  setThresholdDraft(null);
                   setConfirmingReset(false);
                 }}
               >
@@ -285,6 +323,7 @@ export function ScenarioLabView({ scenarioId }: { scenarioId: string }) {
                             // no longer wipes the planner's own number.
                             setRunRateBasis(scenarioId, LINE_03.id, v as "system" | "historical" | "scenario");
                             setRunRateNotice(null);
+                            setRunRateDraft(null);
                           }}
                         >
                           <SelectTrigger className="w-full">
@@ -303,8 +342,12 @@ export function ScenarioLabView({ scenarioId }: { scenarioId: string }) {
                             min={runRate.range.min}
                             max={runRate.range.max}
                             step={runRate.range.step}
-                            value={runRate.inputValue}
-                            onChange={(e) => applyRunRate(Number(e.target.value))}
+                            value={runRateDraft ?? String(runRate.inputValue)}
+                            onChange={(e) => onRunRateChange(e.target.value)}
+                            onBlur={commitRunRate}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") commitRunRate();
+                            }}
                             className="w-28"
                           />
                         )}
@@ -327,8 +370,12 @@ export function ScenarioLabView({ scenarioId }: { scenarioId: string }) {
                         min={threshold.minPct}
                         max={threshold.maxPct}
                         step={threshold.stepPct}
-                        value={threshold.inputPct}
-                        onChange={(e) => applyThreshold(Number(e.target.value) / 100)}
+                        value={thresholdDraft ?? String(threshold.inputPct)}
+                        onChange={(e) => onThresholdChange(e.target.value)}
+                        onBlur={commitThreshold}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") commitThreshold();
+                        }}
                         className="w-24"
                       />
                       <p className="text-[11px] text-[var(--text-muted)]">

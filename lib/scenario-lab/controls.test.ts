@@ -25,7 +25,8 @@ const { calculateScenario } = await import("@/lib/planning-engine/scenarios");
 const { buildScenarioInput, historicalPeriodsForScenario } = await import("@/lib/planning-engine/scenario-limits");
 const { SEED_SCENARIOS } = await import("@/data/synthetic/scenarios");
 const { PRODUCTION_LINES } = await import("@/data/synthetic/master-data");
-const { basisBanner, controlNotice, demandDisplay, fmtRunRate, fmtThreshold, resetPlan, runRateControlModel, targetUtilizationControlModel } = await import("./controls");
+const { TARGET_UTILIZATION_RANGE } = await import("@/lib/planning-engine/validation");
+const { basisBanner, controlNotice, demandDisplay, evaluateDraft, fmtRunRate, fmtThreshold, resetPlan, runRateControlModel, targetUtilizationControlModel } = await import("./controls");
 
 const HALLOWEEN = "scn_halloween_line03_relief";
 const LINE_03 = PRODUCTION_LINES.find((l) => l.id === "line_03")!;
@@ -193,11 +194,24 @@ describe("utilization alert threshold wiring", () => {
     expect(line03Row().targetUtilization).toBe(1);
   });
 
-  it("renders whole percents and the engine's own bounds", () => {
+  it("renders whole percents, and bounds equal to the engine's threshold range", () => {
     const model = targetUtilizationControlModel({ baselineTargetUtilization: 0.9, override: undefined });
     expect(model.inputPct).toBe(90);
-    expect(model.minPct).toBe(0);
-    expect(model.maxPct).toBe(100);
+    // NOTE ON WHAT THIS DOES AND DOES NOT PROVE.
+    //
+    // TARGET_UTILIZATION_RANGE is currently 0–1, so both a model that reads
+    // the range and a model that hardcodes 0/100 satisfy these assertions.
+    // This test therefore pins the VALUES the control shows; it cannot pin
+    // that they were READ from the engine, which is what punch item 3 is
+    // about. (An earlier name — "the engine's own bounds" — claimed that
+    // stronger property; replacing the range lookups in controls.ts with
+    // literal 0/100 left the whole file green.)
+    //
+    // Deriving both sides from the range at least keeps this correct if the
+    // range ever moves. Genuinely proving the coupling needs the range to be
+    // injectable, or a jsdom render asserting the input's min/max attributes.
+    expect(model.minPct).toBe(Math.round(TARGET_UTILIZATION_RANGE.min * 100));
+    expect(model.maxPct).toBe(Math.round(TARGET_UTILIZATION_RANGE.max * 100));
     expect(model.changed).toBe(false);
 
     const overridden = targetUtilizationControlModel({ baselineTargetUtilization: 0.9, override: 0.85 });
@@ -265,6 +279,43 @@ describe("basis sufficiency", () => {
     expect(r.basis.sufficient).toBe(true);
     expect(basisBanner(r.basis).show).toBe(false);
     expect(demandDisplay({ basis: r.basis, low: r.expectedDemandUnits.low, high: r.expectedDemandUnits.high })).toMatch(/^[\d,]+–[\d,]+$/);
+  });
+});
+
+describe("typing into a clamped field", () => {
+  const bounds = { min: 100, max: 100_000, format: fmtRunRate };
+
+  it("holds a half-typed number instead of clamping it out from under the planner", () => {
+    // Typing "6000" one key at a time. Applying "6" as 100 on the first
+    // keystroke would fight the planner for the rest of the number.
+    expect(evaluateDraft("6", bounds).inRange).toBe(false);
+    expect(evaluateDraft("60", bounds).inRange).toBe(false);
+    expect(evaluateDraft("600", bounds).inRange).toBe(true);
+    expect(evaluateDraft("6000", bounds)).toEqual({ value: 6000, inRange: true, hint: null });
+  });
+
+  it("explains why a held value is not applied yet", () => {
+    const held = evaluateDraft("6", bounds);
+    expect(held.value).toBe(6);
+    expect(held.hint).toMatch(/100/);
+    expect(evaluateDraft("", bounds).value).toBeNull();
+    expect(evaluateDraft("", bounds).hint).toBeTruthy();
+    expect(evaluateDraft("abc", bounds).value).toBeNull();
+  });
+
+  it("applies an in-range value live so the workspace moves as you type", () => {
+    const draft = evaluateDraft("9000", bounds);
+    expect(draft.inRange).toBe(true);
+    if (draft.value != null) store().setRunRate(HALLOWEEN, LINE_03.id, evaluatedPeriod(), draft.value);
+    expect(runRateModel().resolved.unitsPerHour).toBe(9000);
+  });
+
+  it("bounds a percentage field in whole percents, not fractions", () => {
+    const pctBounds = { min: 0, max: 100, format: (n: number) => `${Math.round(n)}%` };
+    expect(evaluateDraft("85", pctBounds).inRange).toBe(true);
+    expect(evaluateDraft("200", pctBounds).inRange).toBe(false);
+    expect(evaluateDraft("-10", pctBounds).inRange).toBe(false);
+    expect(evaluateDraft("-10", pctBounds).hint).toMatch(/0%–100%/);
   });
 });
 

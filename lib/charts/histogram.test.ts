@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildHistogramModel, histogramBuckets, histogramDomain } from "./histogram";
+import { buildHistogramModel, histogramBuckets, histogramDomain, leadTimeBasisMarkers } from "./histogram";
 import { labelAnchor } from "./axis";
 import { purchaseOrdersForMaterial, leadTimeStatisticForSample } from "@/data/synthetic/execution-history";
 import { materialById } from "@/data/synthetic/materials";
@@ -100,5 +100,51 @@ describe("lead-time histogram model — the axes the old chart did not have", ()
     const withScenario = buildHistogramModel(values, [...markers, { label: "Scenario", value: 68, token: "--state-scenario" }]);
     expect(withScenario.markers.some((m) => m.token === "--state-scenario")).toBe(true);
     expect(withScenario.markers.every((m) => m.token.startsWith("--state-"))).toBe(true);
+  });
+});
+
+/* ---------------------------------------------------------------------- *
+ * Punch item 13 — the caption promised a Scenario marker that was never
+ * drawn. The caption is now derived from the marker list, so these fail if
+ * the two are ever written independently again.
+ * ---------------------------------------------------------------------- */
+
+describe("leadTimeBasisMarkers — the caption names exactly what is drawn", () => {
+  const base = { systemDays: 42, medianDays: 67, p80Days: 74 };
+
+  it("omits BOTH the scenario marker and the word 'Scenario' when no override exists", () => {
+    const set = leadTimeBasisMarkers(base);
+    expect(set.markers.map((m) => m.label)).toEqual(["System", "Median", "P80"]);
+    expect(set.caption).not.toContain("Scenario");
+    expect(set.caption).toBe("Every non-outlier receipt in the sample, with System / Median / P80 overlaid");
+  });
+
+  it("adds the marker and the caption word together when a scenario value is set", () => {
+    const set = leadTimeBasisMarkers({ ...base, scenarioDays: 68 });
+    const scenario = set.markers.find((m) => m.label === "Scenario");
+    expect(scenario).toMatchObject({ value: 68, token: "--state-scenario" });
+    expect(set.caption).toContain("Scenario");
+  });
+
+  it("every basis named in the caption is a marker that exists, at every input", () => {
+    // The invariant, stated directly: no caption word without a marker.
+    [undefined, null, 0, -5, NaN, 68, 120].forEach((scenarioDays) => {
+      const set = leadTimeBasisMarkers({ ...base, scenarioDays });
+      const named = set.caption.replace("Every non-outlier receipt in the sample, with ", "").replace(" overlaid", "").split(" / ");
+      expect(named).toEqual(set.markers.map((m) => m.label));
+    });
+  });
+
+  it("ignores a zero, negative or non-finite scenario value rather than drawing a marker at day 0", () => {
+    [0, -5, NaN, Infinity].forEach((scenarioDays) => {
+      expect(leadTimeBasisMarkers({ ...base, scenarioDays }).markers).toHaveLength(3);
+    });
+  });
+
+  it("uses a state token per series and never a risk token", () => {
+    leadTimeBasisMarkers({ ...base, scenarioDays: 68 }).markers.forEach((m) => {
+      expect(m.token.startsWith("--state-")).toBe(true);
+      expect(m.token.startsWith("--risk-")).toBe(false);
+    });
   });
 });

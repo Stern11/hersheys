@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { detectPlanningGaps } from "@/lib/planning-engine/gaps";
+import { partitionGapsBySurface } from "@/lib/planning-engine/gap-counting";
 import { DEMO_NOW } from "@/data/synthetic/master-data";
 import { GAP_CATEGORIES, categoryForGapType } from "@/components/gaps/gap-category";
 import { gapConsequence, gapEarliestDate, weeksFromNow } from "@/components/gaps/gap-summary";
@@ -10,10 +11,12 @@ export default function GapsLandingPage() {
   const results = detectPlanningGaps();
   const today = DEMO_NOW.slice(0, 10);
 
-  // Only categorized situations are itemized on this page (capacity/material
-  // gaps are consequence lenses, surfaced from within a gap, not here) — the
-  // summary count must match what's actually listed below, not the raw total.
-  const categorized = results.filter((r) => categoryForGapType(r.gap.type) != null);
+  // Only situations are itemized on this page (capacity/material gaps are
+  // consequence lenses, surfaced from within a gap, not here). The partition
+  // comes from lib/planning-engine/gap-counting.ts — the SAME function
+  // /decisions buckets by — so the header count here and "Open (N)" there
+  // cannot drift apart again.
+  const categorized = partitionGapsBySurface(results).situations;
   const dated = categorized.map((r) => ({ r, earliest: gapEarliestDate(r) }));
   const dueSoon = dated.filter((d) => d.earliest != null && weeksFromNow(today, d.earliest) <= 6).length;
 

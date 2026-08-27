@@ -8,6 +8,7 @@ import {
   formatReadinessCount,
   isPercentUnit,
   lineDisplayName,
+  misroutedActualLineId,
   roundTo,
   summarizeBomReadiness,
   worstCapacityImpact,
@@ -62,7 +63,17 @@ export function gapConsequence(r: GapDetectionResult): string {
         const low = roundTo(g.expectedValueLow, 1);
         const high = roundTo(g.expectedValueHigh, 1);
         const routed = g.lineId ? lineDisplayName(g.lineId) : "the routed work centre";
-        return `${low === high ? `${high}%` : `${low}–${high}%`} of confirmed execution ran off ${routed}, the work centre the routing books`;
+        // The share is the OFF-routing share. This line previously read
+        // "ran off {routed}, the work centre the routing books", which named
+        // the routed centre as the one the work ran on — the inverse of the
+        // finding, and the opposite of what the workspace says one click away
+        // ("...ran somewhere else"). Name the centre it actually ran on.
+        const actualId = misroutedActualLineId();
+        const actual = actualId ? lineDisplayName(actualId) : null;
+        const range = low === high ? `${high}%` : `${low}–${high}%`;
+        return actual
+          ? `${range} of confirmed execution ran on ${actual}, not ${routed} — the work centre the routing books`
+          : `${range} of confirmed execution ran somewhere other than ${routed}, the work centre the routing books`;
       }
       return "Observed execution disagrees with the system master-data value";
     }

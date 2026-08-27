@@ -406,7 +406,7 @@ export function answerCapabilities(snapshot: CopilotSnapshot | null, opts: { gre
   if (worst) {
     const line = allLines.find((l) => l.id === worst.lineId);
     detail.push(
-      `Change capacity assumptions: "set ${line?.name ?? worst.lineId} run rate to 9000" (now ${fmtNum(worst.runRateUnitsPerHour ?? line?.standardRunRateUnitsPerHour ?? 0)}/hr, legal ${fmtNum(limits.runRateUnitsPerHour.min)}–${fmtNum(limits.runRateUnitsPerHour.max)}/hr), "set the alert threshold to 85%" (now ${fmtPct(worst.targetUtilization)}, legal 0–100%).`
+      `Change capacity assumptions: "set ${line?.name ?? worst.lineId} run rate to 9000" (now ${fmtNum(worst.runRateUnitsPerHour ?? line?.standardRunRateUnitsPerHour ?? 0)}/hr, legal ${fmtNum(limits.runRateUnitsPerHour.min)}–${fmtNum(limits.runRateUnitsPerHour.max)}/hr), "set the alert threshold to 85%" (now ${fmtPct(worst.targetUtilization)}, legal ${fmtPct(limits.targetUtilization.min)}–${fmtPct(limits.targetUtilization.max)}).`
     );
   }
 
