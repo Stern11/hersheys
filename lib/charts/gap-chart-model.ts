@@ -59,6 +59,24 @@ export const TREND_LABEL_OFFSET_PCT = 8;
 export const SHORTFALL_LABEL_FULL_PCT = 11;
 /** Clear height the shortfall band needs to carry just its value. */
 export const SHORTFALL_LABEL_COMPACT_PCT = 6;
+/**
+ * How much of a MARK, measured down from its own top edge, a caption must stay
+ * out of.
+ *
+ * `resolveFormalLabel` used to treat only other CAPTIONS as obstacles, so when
+ * the right end of the reference line was blocked it fell back to the left and
+ * landed squarely on the left-most bar — the reported defect, where the
+ * "Formal plan: 3.8M units" chip covered the top-left of the Halloween 2024
+ * bar in both themes and at both widths, hiding the one edge a planner reads a
+ * bar's height off. A bar's body may be crossed by a reference-line caption
+ * (that is conventional); its TOP EDGE may not.
+ */
+export const MARK_TOP_GUARD_PCT = LABEL_OFFSET_PCT;
+
+/** The band a caption must not enter if `topPct`'s top edge is to stay readable. */
+export function markTopGuard(topPct: number, guardPct: number = MARK_TOP_GUARD_PCT): LabelBand {
+  return { topPct, heightPct: guardPct };
+}
 
 const EPS = 1e-9;
 
@@ -90,9 +108,12 @@ export interface FormalLabelPlacement {
  * Where the formal-plan caption goes so that it collides with nothing.
  *
  * The reference line spans the whole plot, so its caption can be anchored at
- * either end; the captions it can collide with are the ones anchored at the
- * same end (the envelope caption and the shortfall caption live over the
- * right-most column, the first bar's delta chip over the left-most).
+ * either end; what it can collide with is whatever is drawn at the same end —
+ * the captions anchored there (the envelope and shortfall captions over the
+ * right-most column, the first bar's delta chip over the left-most) AND the
+ * top edge of that end's own bar/column, passed in as `markTopGuard` bands.
+ * Bars must be obstacles: with captions alone, a blocked right end fell back
+ * to the left and put the chip on the left-most bar's top edge.
  *
  * Preference order: right of the line (the conventional place for a reference
  * label) → left → flip to the other side of the line → left as the last
@@ -370,17 +391,27 @@ export function buildGapChartModel(
   const formalTopPct = topPct(formalValue);
   const expectedRow = rows.find((r) => r.range != null);
 
-  // Captions anchored over the right-most column, which is where a
-  // right-anchored formal-plan caption would land.
+  // What a right-anchored formal-plan caption would land on: the captions
+  // anchored over the right-most column AND that column's own marks. The bars
+  // are obstacles too — a caption that covers a mark's top edge is exactly as
+  // bad as one that covers another caption, and worse, because the mark is the
+  // data.
+  const lastRow = rows[rows.length - 1];
   const rightObstacles: LabelBand[] = [];
   if (expectedRow?.range) rightObstacles.push({ topPct: expectedRow.range.labelTopPct, heightPct: LABEL_OFFSET_PCT });
   if (expectedRow?.shortfall && expectedRow.shortfall.labelFit !== "none") {
     rightObstacles.push({ topPct: expectedRow.shortfall.labelTopPct, heightPct: expectedRow.shortfall.labelHeightPct });
   }
-  // Captions anchored over the left-most column.
+  if (lastRow?.column) rightObstacles.push(markTopGuard(lastRow.column.pointTopPct));
+  if (lastRow?.actual != null) rightObstacles.push(markTopGuard(topPct(lastRow.actual)));
+
+  // …and the same for the left-most column.
+  const firstRow = rows[0];
   const leftObstacles: LabelBand[] = [];
-  const firstTrend = rows[0]?.trend;
+  const firstTrend = firstRow?.trend;
   if (firstTrend) leftObstacles.push({ topPct: firstTrend.labelTopPct, heightPct: TREND_LABEL_OFFSET_PCT });
+  if (firstRow?.column) leftObstacles.push(markTopGuard(firstRow.column.pointTopPct));
+  if (firstRow?.actual != null) leftObstacles.push(markTopGuard(topPct(firstRow.actual)));
 
   const placement = formalIsUsable
     ? resolveFormalLabel(formalTopPct, rightObstacles, leftObstacles)

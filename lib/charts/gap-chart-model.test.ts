@@ -3,6 +3,8 @@ import {
   bandsOverlap,
   buildGapChartModel,
   LABEL_OFFSET_PCT,
+  MARK_TOP_GUARD_PCT,
+  markTopGuard,
   resolveFormalLabel,
   SHORTFALL_LABEL_COMPACT_PCT,
   SHORTFALL_LABEL_FULL_PCT,
@@ -54,7 +56,11 @@ describe("gap chart model — a readable y scale", () => {
   });
 
   it("moves the formal-plan caption below its line when the line is at the top of the box", () => {
-    const low = buildGapChartModel(ROWS, 3_800_000);
+    // A line low in the box, with nothing anchored where its caption goes,
+    // keeps the caption above itself. (ROWS/3.8M is NOT that case — there the
+    // caption is displaced by the shortfall caption and the left-most bar's
+    // top edge; see the anti-collision suite.)
+    const low = buildGapChartModel(ROWS, 1_000_000);
     expect(low.formal.labelBelow).toBe(false);
     // a case where the nice axis lands tight against the data, pushing the
     // formal line into the top caption band
@@ -239,8 +245,11 @@ describe("gap chart model — caption anti-collision", () => {
 
     // the right-hand column genuinely has a caption where the formal caption wanted to go
     expect(bandsOverlap(formalBand, shortfallBand)).toBe(true);
-    expect(model.formal.labelSide).toBe("left");
-    expect(model.formal.labelBelow).toBe(false);
+    // …and the left end is no longer a free fallback: the Halloween 2024 bar's
+    // top edge is there. So the caption flips BELOW its own line instead of
+    // landing on a mark.
+    expect(model.formal.labelBelow).toBe(true);
+    expect(model.formal.labelSide).toBe("right");
     // and the envelope caption is nowhere near it, so it is not the thing that moved it
     expect(bandsOverlap(formalBand, rangeBand)).toBe(false);
   });
@@ -248,6 +257,56 @@ describe("gap chart model — caption anti-collision", () => {
   it("leaves the formal caption on the right when the plan sits far below the column captions", () => {
     const model = buildGapChartModel(ROWS, 1_000_000);
     expect(model.formal.labelSide).toBe("right");
+  });
+
+  /* ---- the reported defect: the chip covered the Halloween 2024 bar ---- */
+
+  it("treats a bar's top edge as an obstacle, not just other captions", () => {
+    const barTop = markTopGuard(40);
+    expect(barTop).toEqual({ topPct: 40, heightPct: MARK_TOP_GUARD_PCT });
+    // a caption above a line at 50% would sit over the top edge of a bar whose
+    // own top is at 40%, so that placement has to be rejected
+    expect(bandsOverlap({ topPct: 50 - LABEL_OFFSET_PCT, heightPct: LABEL_OFFSET_PCT }, barTop)).toBe(true);
+    // a bar at the LEFT end alone still leaves the conventional right anchor
+    expect(resolveFormalLabel(50, [], [barTop])).toEqual({ labelBelow: false, labelSide: "right" });
+    // a bar top at BOTH ends: the caption drops below its own line, where the
+    // guard band has ended
+    expect(resolveFormalLabel(56, [barTop], [barTop])).toEqual({ labelBelow: true, labelSide: "right" });
+    // and when both ends are blocked above AND below, it does not pretend to
+    // have found a clear spot — it falls back rather than looping
+    expect(resolveFormalLabel(50, [barTop], [barTop])).toEqual({ labelBelow: false, labelSide: "left" });
+  });
+
+  it("never lands the formal caption on the top edge of the left-most bar", () => {
+    const model = buildGapChartModel(ROWS, 3_800_000);
+    const chip = {
+      topPct: model.formal.labelBelow ? model.formal.topPct : model.formal.topPct - LABEL_OFFSET_PCT,
+      heightPct: LABEL_OFFSET_PCT,
+    };
+    const firstBarTopPct = 100 - (ROWS[0]!.actual! / model.axis.max) * 100;
+
+    // The chip used to be anchored LEFT and drawn from 24.7% to 36.7% while
+    // this bar's top edge sat at 34.2% — it covered the top-left of the
+    // Halloween 2024 bar in both themes and at both widths.
+    expect(firstBarTopPct).toBeCloseTo(34.17, 1);
+    expect(bandsOverlap({ topPct: 24.67, heightPct: LABEL_OFFSET_PCT }, markTopGuard(firstBarTopPct))).toBe(true);
+
+    // It is no longer anchored over that bar at all — and had it stayed on the
+    // left, the chip's band would still have to clear that bar's top edge.
+    expect(model.formal.labelSide).toBe("right");
+    if (model.formal.labelSide === "left") {
+      expect(bandsOverlap(chip, markTopGuard(firstBarTopPct))).toBe(false);
+    }
+  });
+
+  it("also keeps the caption off the top edge of the right-most column", () => {
+    const model = buildGapChartModel(ROWS, 3_800_000);
+    const chip = {
+      topPct: model.formal.labelBelow ? model.formal.topPct : model.formal.topPct - LABEL_OFFSET_PCT,
+      heightPct: LABEL_OFFSET_PCT,
+    };
+    expect(model.formal.labelSide).toBe("right");
+    expect(bandsOverlap(chip, markTopGuard(model.rows[3]!.column!.pointTopPct))).toBe(false);
   });
 });
 
