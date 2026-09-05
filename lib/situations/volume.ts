@@ -17,7 +17,7 @@
  */
 
 import type { HistoricalItemRow, PeriodKey } from "@/types/dataset";
-import type { PlannedVolumeBasis, SeasonPoint } from "@/types/situation";
+import type { PlannedVolumeBasis, SeasonOption, SeasonPoint } from "@/types/situation";
 
 /**
  * Growth beyond this is more likely a data artefact than a plan. A season that
@@ -61,6 +61,26 @@ export function candidateIdFor(row: HistoricalItemRow): string {
 /** Every period present in the rows, oldest first. */
 export function availablePeriods(rows: readonly HistoricalItemRow[]): PeriodKey[] {
   return [...new Set(rows.map((r) => r.historicalPeriod))].sort();
+}
+
+/**
+ * Each comparable season with its size.
+ *
+ * Sized from the whole history rather than from the current selection: a
+ * planner deciding whether to *add* a season needs to know how big it is
+ * before it is in the basis, and a figure that only appears once selected is
+ * no help in making that choice.
+ */
+export function seasonOptions(rows: readonly HistoricalItemRow[]): SeasonOption[] {
+  return availablePeriods(rows).map((period) => {
+    const inSeason = rows.filter((r) => r.historicalPeriod === period);
+    return {
+      period,
+      units: inSeason.reduce((sum, r) => sum + r.actualUnits, 0),
+      value: inSeason.reduce((sum, r) => sum + (r.actualValue ?? 0), 0),
+      itemCount: inSeason.length,
+    };
+  });
 }
 
 /**

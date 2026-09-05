@@ -84,6 +84,24 @@
   --chart-label-size: 11px;
   --chart-label-color: var(--text-muted);
   --chart-gridline-color: var(--border);
+
+  /* ---- Motion ----
+     Motion here exists to show *change*: a number that moved because an
+     assumption moved, a panel arriving from the edge it will return to. It is
+     never decoration. Durations are deliberately short — a planner scanning a
+     list should never wait for the interface.
+
+     Every one of these collapses to 0 under prefers-reduced-motion; see the
+     @media block in @layer base. */
+  --duration-instant: 90ms;
+  --duration-fast: 140ms;
+  --duration-medium: 220ms;
+  --duration-slow: 320ms;
+  /* Decelerating: things entering the screen. */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Accelerating: things leaving it. */
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
 }
 
 .dark {
@@ -195,6 +213,26 @@
 }
 
 @layer base {
+  /* A planner who has asked their system to stop moving things means it. This
+     zeroes the motion tokens themselves, so every transition built on them
+     goes still without each component needing its own guard. */
+  @media (prefers-reduced-motion: reduce) {
+    :root {
+      --duration-instant: 0ms;
+      --duration-fast: 0ms;
+      --duration-medium: 0ms;
+      --duration-slow: 0ms;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
   * {
     border-color: var(--border);
     outline-color: var(--ring);

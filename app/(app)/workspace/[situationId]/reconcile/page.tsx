@@ -14,10 +14,14 @@ import { ArrowRight, Pencil, RotateCcw } from "lucide-react";
 import { useSituation } from "@/components/dataset/dataset-provider";
 import { useDatasetStore } from "@/stores/dataset-store";
 import { BusinessToPlanBridge } from "@/components/v2/bridge";
+import { CandidateFilterBar } from "@/components/v2/candidate-filters";
 import { DataTable, type Column } from "@/components/v2/data-table";
+import { SeasonBasis } from "@/components/v2/season-basis";
+import { SkuImpactDrawer } from "@/components/v2/sku-impact-drawer";
 import { DispositionBadge, DISPOSITION_ORDER, dispositionLabel } from "@/components/v2/state-badge";
 import { HeroMetric, Label, MetricRow, Page, SectionRule } from "@/components/v2/page";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { applyFilters, filterOptions, type CandidateFilters } from "@/lib/situations/filters";
 import { cn } from "@/lib/utils/cn";
 import { LOAD_BEARING_DISPOSITIONS, type CandidateItem, type ContributorDisposition } from "@/types/situation";
 import { fmtMoney, fmtUnits } from "@/lib/utils/format";
@@ -27,9 +31,15 @@ export default function ReconcilePage({ params }: { params: Promise<{ situationI
   const situation = useSituation(situationId);
   const setDisposition = useDatasetStore((s) => s.setDisposition);
   const resetDispositions = useDatasetStore((s) => s.resetDispositions);
+  const setSeasonBasis = useDatasetStore((s) => s.setSeasonBasis);
   const overrides = useDatasetStore((s) => s.overridesBySituation[situationId]);
 
+  const [filters, setFilters] = useState<CandidateFilters>({});
+  const [openSkuId, setOpenSkuId] = useState<string | null>(null);
+
   const candidates = useMemo(() => situation?.candidateItems ?? [], [situation]);
+  const options = useMemo(() => filterOptions(candidates), [candidates]);
+  const visible = useMemo(() => applyFilters(candidates, filters), [candidates, filters]);
 
   const counts = useMemo(() => {
     const out: Partial<Record<ContributorDisposition, number>> = {};
@@ -66,11 +76,29 @@ export default function ReconcilePage({ params }: { params: Promise<{ situationI
       render: (row) => fmtUnits(row.actualUnits),
     },
     {
-      key: "value",
-      header: "Prior value",
+      key: "planned",
+      header: "Carries forward",
       numeric: true,
-      sortValue: (row) => row.actualValue,
-      render: (row) => fmtMoney(row.actualValue, bridge.currency),
+      sortValue: (row) => row.plannedUnits,
+      render: (row) => {
+        const moved = row.plannedUnits !== row.actualUnits;
+        return (
+          <div>
+            <div className="tabular-nums text-[var(--text-primary)]">
+              {fmtUnits(row.plannedUnits)}
+            </div>
+            {moved ? (
+              <div className="text-[11.5px] text-[var(--text-muted)]">
+                {row.plannedBasis.kind === "planner_override"
+                  ? "set by hand"
+                  : `${row.plannedBasis.growthPct >= 0 ? "+" : ""}${(
+                      row.plannedBasis.growthPct * 100
+                    ).toFixed(1)}%`}
+              </div>
+            ) : null}
+          </div>
+        );
+      },
     },
     {
       key: "coverage",
@@ -111,11 +139,20 @@ export default function ReconcilePage({ params }: { params: Promise<{ situationI
       header: "Decision",
       width: "196px",
       render: (row) => (
-        <DecisionCell
-          candidate={row}
-          settled={isSettled(row)}
-          onChange={(value) => setDisposition(situationId, row.id, value)}
-        />
+        // The row opens the drawer; the decision control must not, or changing
+        // a disposition would always be followed by a panel the planner did
+        // not ask for.
+        <div
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+          role="presentation"
+        >
+          <DecisionCell
+            candidate={row}
+            settled={isSettled(row)}
+            onChange={(value) => setDisposition(situationId, row.id, value)}
+          />
+        </div>
       ),
     },
   ];
@@ -148,6 +185,9 @@ export default function ReconcilePage({ params }: { params: Promise<{ situationI
       </div>
 
       <SectionRule label="Expected business against the formal plan" />
+      <div className="mb-5">
+        <SeasonBasis situation={situation} onChange={(periods) => setSeasonBasis(situationId, periods)} />
+      </div>
       <BusinessToPlanBridge bridge={bridge} candidates={candidates} />
 
       <SectionRule
@@ -178,13 +218,37 @@ export default function ReconcilePage({ params }: { params: Promise<{ situationI
         ))}
       </div>
 
+      <CandidateFilterBar
+        filters={filters}
+        options={options}
+        visible={visible}
+        total={candidates.length}
+        currency={bridge.currency}
+        onChange={setFilters}
+      />
+
       <DataTable
-        rows={candidates}
+        rows={visible}
         columns={columns}
         rowKey={(row) => row.id}
+        onRowClick={(row) => setOpenSkuId(row.id)}
+        isRowActive={(row) => row.id === openSkuId}
         rowClassName={(row) => (isSettled(row) ? undefined : "bg-[var(--surface)]")}
-        initialSort={{ key: "value", direction: "desc" }}
-        empty={`No prior-season items comparable to ${situation.title} were found, so nothing can be offered as an explanation.`}
+        initialSort={{ key: "planned", direction: "desc" }}
+        empty={
+          candidates.length === 0
+            ? `No prior-season items comparable to ${situation.title} were found, so nothing can be offered as an explanation.`
+            : "No items match these filters."
+        }
+      />
+
+      <SkuImpactDrawer
+        situation={situation}
+        candidateId={openSkuId}
+        onClose={() => setOpenSkuId(null)}
+        onDisposition={(candidateId, disposition) =>
+          setDisposition(situationId, candidateId, disposition)
+        }
       />
 
       <div className="mt-8 flex items-center justify-between border-t border-[var(--border)] pt-5">

@@ -46,6 +46,7 @@ import {
   collapseToSkus,
   defaultSelectedPeriods,
   describeSeasonBasis,
+  seasonOptions,
 } from "./volume";
 import {
   addDays,
@@ -195,8 +196,12 @@ function buildSituation(
   // Every comparable season, not just the latest — the planner chooses which
   // of them form the basis, and older ones stay visible either way.
   const allPriorRows = comparableHistorical(dataset, scope, label);
-  const seasons = availablePeriods(allPriorRows);
-  const selectedSeasons = resolveSelectedSeasons(overrides.seasonBasis, seasons, allPriorRows);
+  const seasons = seasonOptions(allPriorRows);
+  const selectedSeasons = resolveSelectedSeasons(
+    overrides.seasonBasis,
+    availablePeriods(allPriorRows),
+    allPriorRows
+  );
   const businessGrowthPct = businessRows.find((r) => r.growthPct !== undefined)?.growthPct;
 
   // Collapse to one row per SKU *before* matching runs: three seasons of the

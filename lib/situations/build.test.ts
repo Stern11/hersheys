@@ -1401,9 +1401,18 @@ describe("the season basis defaults to the most recent comparable season", () =>
 
   it("still offers the older season as available, rather than discarding it", () => {
     const situation = firstSituation(buildCoreDataset());
-    expect(situation.availableSeasons).toContain("2025-Halloween");
-    expect(situation.availableSeasons).toContain("2026-Halloween");
+    const periods = situation.availableSeasons.map((s) => s.period);
+    expect(periods).toEqual(["2025-Halloween", "2026-Halloween"]);
     expect(situation.selectedSeasons).toEqual(["2026-Halloween"]);
+  });
+
+  it("sizes every season, including the ones not in the basis", () => {
+    const situation = firstSituation(buildCoreDataset());
+    // A planner choosing whether to add a season needs its size *before* it is
+    // selected, so the figure must come from the history, not the selection.
+    const older = situation.availableSeasons.find((s) => s.period === "2025-Halloween")!;
+    expect(older.units).toBeGreaterThan(0);
+    expect(older.itemCount).toBeGreaterThan(0);
   });
 
   it("says plainly that one season implies no growth", () => {

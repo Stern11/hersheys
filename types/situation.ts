@@ -106,6 +106,14 @@ export const LOAD_BEARING_DISPOSITIONS: readonly ContributorDisposition[] = ["ca
 /* Carry-forward volume                                                */
 /* ------------------------------------------------------------------ */
 
+/** One comparable season, and what it holds. */
+export interface SeasonOption {
+  period: PeriodKey;
+  units: number;
+  value: number;
+  itemCount: number;
+}
+
 /** One season's actuals for a SKU, oldest first (V2 §16.3). */
 export interface SeasonPoint {
   period: PeriodKey;
@@ -385,8 +393,12 @@ export interface PlanningSituation {
   bridge: ReconciliationBridge;
   candidateItems: CandidateItem[];
 
-  /** Every historical period comparable to this situation, oldest first. */
-  availableSeasons: PeriodKey[];
+  /**
+   * Every historical period comparable to this situation, oldest first, with
+   * its size — so a planner can judge whether a season is worth including
+   * before they include it.
+   */
+  availableSeasons: SeasonOption[];
   /** The periods currently forming the basis. */
   selectedSeasons: PeriodKey[];
   /** One line describing what the selected seasons imply. */
