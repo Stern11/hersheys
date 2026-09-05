@@ -4,6 +4,7 @@ import { Moon, Sun } from "lucide-react";
 import { AiCommandBar } from "@/components/ai/ai-command-bar";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/stores/app-store";
+import { DatasetIndicator } from "./dataset-indicator";
 
 export function TopBar() {
   const theme = useAppStore((s) => s.theme);
@@ -14,6 +15,8 @@ export function TopBar() {
       <div className="max-w-xl flex-1">
         <AiCommandBar />
       </div>
+
+      <DatasetIndicator />
 
       <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme">
         {theme === "light" ? <Moon className="size-3.5" /> : <Sun className="size-3.5" />}

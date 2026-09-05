@@ -5,6 +5,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAppStore, THEME_STORAGE_KEY } from "@/stores/app-store";
 import { useScenarioStore } from "@/stores/scenario-store";
+import { useDatasetStore } from "@/stores/dataset-store";
+import { useSituationScenarioStore } from "@/stores/situation-scenario-store";
+import { DatasetProvider } from "@/components/dataset/dataset-provider";
 
 /**
  * Applied by the browser BEFORE first paint, so a dark-theme planner never
@@ -31,6 +34,11 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     // which only flipped an in-memory status, was thrown away with it.
     void useAppStore.persist.rehydrate();
     void useScenarioStore.persist.rehydrate();
+    // The dataset store persists to localStorage rather than the session, so
+    // the planner's chosen mode survives a refresh instead of sending them
+    // back to the first-run screen.
+    void useDatasetStore.persist.rehydrate();
+    void useSituationScenarioStore.persist.rehydrate();
     // Theme lives in localStorage rather than the session slice (it is a
     // durable preference), so it is restored separately and re-applied to the
     // store so the toggle's icon matches what is actually on screen.
@@ -40,7 +48,9 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
-      <TooltipProvider>{children}</TooltipProvider>
+      <TooltipProvider>
+        <DatasetProvider>{children}</DatasetProvider>
+      </TooltipProvider>
     </QueryClientProvider>
   );
 }

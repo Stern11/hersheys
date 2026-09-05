@@ -1,4 +1,16 @@
-# Architecture
+# Architecture — the preserved V1 engine
+
+> **This document describes the V1 planning engine, which is still present and
+> still tested but is no longer the path the product renders.** The V2 workflow
+> — the one behind Overview, Planning Workspace, Scenario Lab and Decisions —
+> is documented in [`v2-architecture.md`](./v2-architecture.md), and its input
+> model is `types/dataset.ts` rather than `data/synthetic/*`.
+>
+> V1 is kept because the reasoning below still holds for the code it describes,
+> and because `reconcileProvisional()` from `lib/planning-engine/reconciliation.ts`
+> is used directly by the V2 Decisions page. New work should read a
+> `PlanningDataset`, not `data/synthetic/*`.
+
 
 ## Layers
 
