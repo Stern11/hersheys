@@ -83,8 +83,8 @@ export default function DecidePage({ params }: { params: Promise<{ situationId: 
         key: "commit-materials",
         title: "Commit long-lead materials",
         rationale: `${planNow.materialName} is decision-ready by ${fmtDateShort(planNow.decisionDate)}.`,
-        href: `/workspace/${situationId}/supply`,
-        cta: "Open supply",
+        href: `/workspace/${situationId}/reconcile`,
+        cta: "See which items need it",
       });
     }
 

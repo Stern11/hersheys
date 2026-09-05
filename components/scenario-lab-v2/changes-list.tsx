@@ -16,7 +16,7 @@ import { useMemo } from "react";
 import { X } from "lucide-react";
 import { useSituationScenarioStore } from "@/stores/situation-scenario-store";
 import { diffAdjustments } from "@/lib/situations/scenario";
-import { fmtPct } from "@/lib/utils/format";
+import { fmtPct, fmtUnits } from "@/lib/utils/format";
 import type { PlanningDataset } from "@/types/dataset";
 import type { AdjustmentDiff, PlanningSituation, ScenarioAdjustments } from "@/types/situation";
 
@@ -26,6 +26,7 @@ function formatValue(value: number, unit: string): string {
   if (unit === "h") return `${Math.round(value)}h`;
   if (unit === "/h") return `${Math.round(value)}/h`;
   if (unit === "d") return `${Math.round(value)}d`;
+  if (unit === "u") return fmtUnits(Math.round(value));
   return String(Math.round(value));
 }
 
@@ -37,7 +38,13 @@ function formatDelta(delta: number, unit: string): string {
   return `${sign}${formatValue(abs, unit)}`;
 }
 
-function withMaterialDiffs(
+/**
+ * Diffs for the two categories whose baseline is resolved inside
+ * `buildSituations` rather than being a dataset column — lead time (system vs
+ * observed median vs P80) and carry-forward volume (the season basis and its
+ * growth). Computed here because this is where the resolved baseline lives.
+ */
+function withResolvedDiffs(
   base: AdjustmentDiff[],
   baseline: PlanningSituation,
   adjustments: ScenarioAdjustments
@@ -58,7 +65,33 @@ function withMaterialDiffs(
       },
     ];
   });
-  return [...base.filter((d) => d.category !== "leadTimeDays"), ...leadTime];
+  const volume: AdjustmentDiff[] = Object.entries(adjustments.volumeUnits ?? {}).flatMap(
+    ([candidateId, scenario]) => {
+      const item = baseline.candidateItems.find((c) => c.id === candidateId);
+      if (!item) return [];
+      // Measured against what the basis implied, not the historical actual —
+      // the actual is a different number and would show every row as changed.
+      const baselineValue = item.plannedBasis.inferredUnits;
+      if (Math.abs(scenario - baselineValue) < 0.5) return [];
+      return [
+        {
+          category: "volumeUnits" as const,
+          key: candidateId,
+          label: `${item.itemName} carries forward`,
+          baseline: baselineValue,
+          scenario,
+          delta: scenario - baselineValue,
+          unit: "u",
+        },
+      ];
+    }
+  );
+
+  return [
+    ...base.filter((d) => d.category !== "leadTimeDays" && d.category !== "volumeUnits"),
+    ...volume,
+    ...leadTime,
+  ];
 }
 
 export function ChangesList({
@@ -76,7 +109,7 @@ export function ChangesList({
   const clearAdjustment = useSituationScenarioStore((s) => s.clearAdjustment);
 
   const diffs = useMemo(
-    () => withMaterialDiffs(diffAdjustments(dataset, adjustments), baseline, adjustments),
+    () => withResolvedDiffs(diffAdjustments(dataset, adjustments), baseline, adjustments),
     [dataset, adjustments, baseline]
   );
 

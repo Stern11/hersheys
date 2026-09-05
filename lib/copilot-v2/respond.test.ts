@@ -144,15 +144,19 @@ describe("explain the gap", () => {
 /* ------------------------------------------------------------------ */
 
 describe("navigate", () => {
-  it("opens capacity for a situation named in the question", () => {
+  it("sends a capacity question to the items that cause it", () => {
     const reply = respond("open capacity for Halloween 2027", ctx());
-    expect(reply.action).toEqual({ kind: "navigate", href: `/workspace/${halloween.id}/capacity` });
-    expect(reply.visualsUpdated).toEqual(["Capacity"]);
+    // Capacity is not a destination any more: it is what particular
+    // unrepresented items do, so the answer is the list of those items.
+    expect(reply.action).toEqual({ kind: "navigate", href: `/workspace/${halloween.id}/reconcile` });
+    expect(reply.text).toMatch(/capacity/i);
+    expect(reply.text).toMatch(/not represented/i);
   });
 
-  it("opens materials using the active situation when none is named", () => {
+  it("sends a materials question to the same place, using the active situation", () => {
     const reply = respond("show materials", ctx({ activeSituationId: holiday.id }));
-    expect(reply.action).toEqual({ kind: "navigate", href: `/workspace/${holiday.id}/supply` });
+    expect(reply.action).toEqual({ kind: "navigate", href: `/workspace/${holiday.id}/reconcile` });
+    expect(reply.text).toMatch(/materials/i);
   });
 
   it("resolves the situation from the pathname when nothing else names one", () => {

@@ -3,9 +3,15 @@
 /**
  * The situation workflow frame (V2 §41).
  *
- * Reconcile -> Plan Supply -> Check Capacity -> Decide, as top step navigation
- * so a planner can move between steps freely rather than being marched through
- * a wizard. The situation header stays put so the context never disappears.
+ * Reconcile -> Decide, as top step navigation so a planner can move between
+ * steps freely rather than being marched through a wizard. The situation
+ * header stays put so the context never disappears.
+ *
+ * There is deliberately no Plan Supply or Check Capacity step. Material and
+ * capacity consequences are not separate subjects a planner visits — they are
+ * what a *particular* unrepresented item does, and reading them as portfolio
+ * aggregates hid the very thing that caused them. They live inside the SKU
+ * drawer on Reconcile, and roll up on Decide.
  */
 
 import Link from "next/link";
@@ -20,8 +26,6 @@ import { fmtDateShort } from "@/lib/utils/format";
 
 const STEPS = [
   { slug: "reconcile", label: "Reconcile", question: "What isn't represented?" },
-  { slug: "supply", label: "Plan Supply", question: "What can I plan now?" },
-  { slug: "capacity", label: "Check Capacity", question: "Where does it hit?" },
   { slug: "decide", label: "Decide", question: "What should I do?" },
 ];
 

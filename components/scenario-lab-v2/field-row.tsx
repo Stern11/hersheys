@@ -14,23 +14,31 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { fmtUnits } from "@/lib/utils/format";
 
-export type FieldDisplay = "pct" | "num";
+export type FieldDisplay = "pct" | "num" | "units";
 
 function formatValue(value: number, display: FieldDisplay): string {
   if (display === "pct") return `${Math.round(value * 100)}%`;
+  // Volumes run to seven figures. Printed raw they are unreadable at a glance
+  // and overflow the column, so the summary line is compact even though the
+  // input itself still edits the exact number.
+  if (display === "units") return fmtUnits(value);
   return Number.isInteger(value) ? `${value}` : value.toFixed(1);
 }
 
 function formatSigned(value: number, display: FieldDisplay): string {
-  if (Math.abs(value) < (display === "pct" ? 0.0005 : 0.05)) return formatValue(0, display);
+  const epsilon = display === "pct" ? 0.0005 : display === "units" ? 0.5 : 0.05;
+  if (Math.abs(value) < epsilon) return formatValue(0, display);
   const sign = value > 0 ? "+" : "−";
   return `${sign}${formatValue(Math.abs(value), display)}`;
 }
 
 /** What the input box itself edits: whole percent points, or the raw number. */
 function toInputValue(value: number, display: FieldDisplay): number {
-  return display === "pct" ? Math.round(value * 1000) / 10 : Math.round(value * 100) / 100;
+  if (display === "pct") return Math.round(value * 1000) / 10;
+  if (display === "units") return Math.round(value);
+  return Math.round(value * 100) / 100;
 }
 
 function fromInputValue(value: number, display: FieldDisplay): number {
@@ -46,6 +54,8 @@ export function FieldRow({
   display = "num",
   min,
   max,
+  labelWidth = 104,
+  inputWidth = 68,
 }: {
   label: string;
   baseline: number;
@@ -56,6 +66,10 @@ export function FieldRow({
   display?: FieldDisplay;
   min?: number;
   max?: number;
+  /** Narrower when the row's subject is already named above it. */
+  labelWidth?: number;
+  /** Wider for seven-figure volumes, which do not fit the default box. */
+  inputWidth?: number;
 }) {
   const effective = override ?? baseline;
   const isOverridden = override !== undefined;
@@ -86,7 +100,12 @@ export function FieldRow({
 
   return (
     <div className="flex items-center gap-2">
-      <span className="w-[104px] flex-none truncate text-[12px] text-[var(--text-secondary)]">{label}</span>
+      <span
+        className="flex-none truncate text-[12px] text-[var(--text-secondary)]"
+        style={{ width: labelWidth }}
+      >
+        {label}
+      </span>
       <Input
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -95,7 +114,8 @@ export function FieldRow({
           if (e.key === "Enter") (e.target as HTMLInputElement).blur();
         }}
         inputMode="decimal"
-        className="h-7 w-[68px] flex-none text-right"
+        className="h-7 flex-none text-right"
+        style={{ width: inputWidth }}
       />
       <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--text-muted)]">
         {isOverridden ? (

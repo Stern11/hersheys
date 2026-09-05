@@ -389,22 +389,17 @@ function tryNavigate(question: string, ctx: CopilotContext): CopilotReply | null
       visualsUpdated: ["Reconcile"],
     };
   }
-  if (/material|supply/.test(q)) {
+  // Materials and capacity are no longer destinations. They are consequences of
+  // particular unrepresented items, so the honest answer to "show me materials"
+  // is the list of items causing them, not a page of aggregates.
+  if (/material|supply|capacity/.test(q)) {
     const situation = resolveSituation(question, ctx);
     if (!situation) return needSituationReply(ctx);
+    const subject = /capacity/.test(q) ? "Capacity" : "Materials";
     return {
-      text: `Opening Materials for ${situation.title}.`,
-      action: { kind: "navigate", href: `/workspace/${situation.id}/supply` },
-      visualsUpdated: ["Materials"],
-    };
-  }
-  if (/capacity/.test(q)) {
-    const situation = resolveSituation(question, ctx);
-    if (!situation) return needSituationReply(ctx);
-    return {
-      text: `Opening Capacity for ${situation.title}.`,
-      action: { kind: "navigate", href: `/workspace/${situation.id}/capacity` },
-      visualsUpdated: ["Capacity"],
+      text: `${subject} follows from the items that are not represented. Opening Reconcile for ${situation.title} — open an item to see the lines and components it drives.`,
+      action: { kind: "navigate", href: `/workspace/${situation.id}/reconcile` },
+      visualsUpdated: ["Reconcile"],
     };
   }
   if (/\bdecide\b/.test(q)) {

@@ -418,6 +418,27 @@ export interface PlanningSituation {
   calculatedAt: string;
 }
 
+/**
+ * A volume the planner tested in Scenario Lab and then committed.
+ *
+ * This is the governed provisional assumption from V2 §20.3: it bears load
+ * like any other carry-forward number, but it is recorded as a decision — with
+ * what it replaced and what it was based on — rather than written back into
+ * the data it came from. The uploaded workbook is never rewritten.
+ */
+export interface VolumeCommitment {
+  candidateId: string;
+  itemName: string;
+  units: number;
+  /** What the season basis would have carried, for the reconciliation trail. */
+  basisUnits: number;
+  /** The basis label at the moment of committing. */
+  basisLabel: string;
+  /** From `dataset.metadata.planningNow`, never `Date.now()`. */
+  committedAt: string;
+  note?: string;
+}
+
 /** Planner decisions that live outside the dataset and drive recomputation. */
 export interface SituationOverrides {
   /** candidateItem.id -> disposition the planner chose. */
@@ -429,6 +450,8 @@ export interface SituationOverrides {
    * recent season only, so nothing changes until a planner opts into more.
    */
   seasonBasis?: PeriodKey[];
+  /** Volumes committed out of Scenario Lab, keyed by candidate id. */
+  commitments?: Record<string, VolumeCommitment>;
 }
 
 export const EMPTY_SITUATION_OVERRIDES: SituationOverrides = { dispositions: {} };

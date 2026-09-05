@@ -21,13 +21,21 @@ import { buildSituations } from "@/lib/situations/build";
 import { EMPTY_ADJUSTMENTS } from "@/types/situation";
 import { NotAvailable, Page, SectionRule } from "@/components/v2/page";
 import { ScenarioToolbar } from "./scenario-toolbar";
+import { ControlsVolume } from "./controls-volume";
 import { ControlsCapacity } from "./controls-capacity";
 import { ControlsAllocation } from "./controls-allocation";
 import { ControlsMaterials } from "./controls-materials";
 import { ImpactPanel } from "./impact-panel";
 import { ChangesList } from "./changes-list";
+import { CommitBar } from "./commit-bar";
 
-export function ScenarioLabShell({ situationId }: { situationId: string }) {
+export function ScenarioLabShell({
+  situationId,
+  focusItemId,
+}: {
+  situationId: string;
+  focusItemId?: string;
+}) {
   const { dataset, situations, loading } = useDataset();
   const overridesBySituation = useDatasetStore((s) => s.overridesBySituation);
 
@@ -70,6 +78,22 @@ export function ScenarioLabShell({ situationId }: { situationId: string }) {
 
   const adjustments = activeScenario?.adjustments ?? EMPTY_ADJUSTMENTS;
 
+  // Volumes already committed are part of the baseline, so the scenario has to
+  // start from them — otherwise opening the lab would silently revert a
+  // decision the planner had already made. Scenario values win over them.
+  const committedVolumes = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const commitment of Object.values(overridesBySituation[situationId]?.commitments ?? {})) {
+      out[commitment.candidateId] = commitment.units;
+    }
+    return out;
+  }, [overridesBySituation, situationId]);
+
+  const effectiveVolumes = useMemo(
+    () => ({ ...committedVolumes, ...(adjustments.volumeUnits ?? {}) }),
+    [committedVolumes, adjustments.volumeUnits]
+  );
+
   const scenarioDataset = useMemo(
     () => (dataset ? applyScenarioToDataset(dataset, adjustments) : null),
     [dataset, adjustments]
@@ -81,9 +105,10 @@ export function ScenarioLabShell({ situationId }: { situationId: string }) {
         ? buildSituations(scenarioDataset, {
             overridesBySituation,
             leadTimeOverrideDays: adjustments.leadTimeDays,
+            volumeOverrideUnits: effectiveVolumes,
           }).find((s) => s.id === situationId)
         : undefined,
-    [scenarioDataset, overridesBySituation, adjustments.leadTimeDays, situationId]
+    [scenarioDataset, overridesBySituation, adjustments.leadTimeDays, effectiveVolumes, situationId]
   );
 
   if (loading) return <Page>{null}</Page>;
@@ -136,6 +161,15 @@ export function ScenarioLabShell({ situationId }: { situationId: string }) {
           <aside className="w-[340px] flex-none">
             {activeScenario ? (
               <>
+                {/* Volume first and open by default: a planner opens the lab
+                    with a demand question, and leading with hours and run
+                    rates answered a question they had not asked. */}
+                <ControlsVolume
+                  scenarioId={activeScenario.id}
+                  baseline={baseline}
+                  adjustments={adjustments}
+                  focusItemId={focusItemId}
+                />
                 <ControlsCapacity scenarioId={activeScenario.id} baseline={baseline} adjustments={adjustments} />
                 <ControlsAllocation
                   scenarioId={activeScenario.id}
@@ -147,7 +181,8 @@ export function ScenarioLabShell({ situationId }: { situationId: string }) {
               </>
             ) : (
               <p className="pt-2 text-[12.5px] leading-snug text-[var(--text-muted)]">
-                No scenario yet. Start one to adjust capacity, line allocation, and material lead-time assumptions.
+                No scenario yet. Start one to change what an item carries forward, and to test
+                capacity, line allocation and lead-time assumptions against it.
               </p>
             )}
           </aside>
@@ -162,6 +197,8 @@ export function ScenarioLabShell({ situationId }: { situationId: string }) {
               baseline={baseline}
               adjustments={adjustments}
             />
+
+            <CommitBar baseline={baseline} scenario={effectiveScenario} adjustments={adjustments} />
           </div>
         </div>
       </Page>

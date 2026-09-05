@@ -18,6 +18,23 @@ import type {
 } from "@/types/situation";
 import type { MonthKey } from "@/types/dataset";
 
+/**
+ * The line's tightest month, which is where a constraint actually bites.
+ *
+ * Window totals would average a single overloaded month away, so the bar a
+ * planner sees is drawn at the peak rather than across the whole window.
+ */
+export interface SkuLinePeak {
+  period: MonthKey;
+  /** Hours this SKU adds in that month. */
+  thisItemHours: number;
+  /** Everything on the line that month, including this SKU. */
+  effectiveHours: number;
+  availableHours: number;
+  targetHours: number;
+  effectiveUtilization: number;
+}
+
 /** This SKU's hours on one line, across the production window. */
 export interface SkuLineLoad {
   lineId: string;
@@ -32,6 +49,8 @@ export interface SkuLineLoad {
   isExposed: boolean;
   /** The worst effective utilisation this line reaches, for context. */
   peakEffectiveUtilization: number;
+  /** The line at its tightest month, for the chart. */
+  peak: SkuLinePeak;
 }
 
 /** One component this SKU requires. */
@@ -110,7 +129,10 @@ export function skuImpact(
       const cells = situation.capacityExposure.cells.filter((c) => c.lineId === lineId);
       const first = cells[0];
       const lineUnresolved = cells.reduce((sum, c) => sum + c.unresolvedHours, 0);
-      const peak = cells.reduce((max, c) => Math.max(max, c.effectiveUtilization), 0);
+      const peakCell = cells.reduce<(typeof cells)[number] | undefined>(
+        (worst, c) => (worst === undefined || c.effectiveUtilization > worst.effectiveUtilization ? c : worst),
+        undefined
+      );
       return {
         lineId,
         lineName: first?.lineName ?? lineId,
@@ -121,7 +143,17 @@ export function skuImpact(
           .map(([period, hours]) => ({ period, hours }))
           .sort((a, b) => (a.period < b.period ? -1 : 1)),
         isExposed: situation.capacityExposure.exposedLineIds.includes(lineId),
-        peakEffectiveUtilization: peak,
+        peakEffectiveUtilization: peakCell?.effectiveUtilization ?? 0,
+        peak: {
+          period: peakCell?.period ?? ("" as MonthKey),
+          thisItemHours: peakCell ? (entry.byPeriod.get(peakCell.period) ?? 0) : 0,
+          effectiveHours: peakCell?.effectiveHours ?? 0,
+          availableHours: peakCell?.availableHours ?? 0,
+          targetHours: peakCell
+            ? peakCell.availableHours * peakCell.targetUtilizationPct
+            : 0,
+          effectiveUtilization: peakCell?.effectiveUtilization ?? 0,
+        },
       } satisfies SkuLineLoad;
     })
     .sort((a, b) => b.hours - a.hours);

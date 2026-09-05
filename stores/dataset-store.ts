@@ -10,7 +10,12 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import type { ContributorDisposition, MatchConfig, SituationOverrides } from "@/types/situation";
+import type {
+  ContributorDisposition,
+  MatchConfig,
+  SituationOverrides,
+  VolumeCommitment,
+} from "@/types/situation";
 import type { DatasetMode } from "@/types/dataset";
 import { webStorage } from "./persist-storage";
 import { DEFAULT_DEMO_SEED } from "@/lib/dataset/demo/generate";
@@ -49,6 +54,9 @@ export interface DatasetStoreState {
   setMatchConfig: (situationId: string, config: MatchConfig | undefined) => void;
   /** Which historical periods form the planning basis for one situation. */
   setSeasonBasis: (situationId: string, periods: string[] | undefined) => void;
+  /** Commits a scenario volume as a governed provisional assumption. */
+  commitVolume: (situationId: string, commitment: VolumeCommitment) => void;
+  releaseCommitment: (situationId: string, candidateId: string) => void;
 }
 
 const emptyOverrides = (): SituationOverrides => ({ dispositions: {} });
@@ -163,6 +171,37 @@ export const useDatasetStore = create<DatasetStoreState>()(
             overridesBySituation: {
               ...state.overridesBySituation,
               [situationId]: { ...current, matchConfig: config },
+            },
+          };
+        }),
+
+      commitVolume: (situationId, commitment) =>
+        set((state) => {
+          const current = state.overridesBySituation[situationId] ?? emptyOverrides();
+          return {
+            overridesBySituation: {
+              ...state.overridesBySituation,
+              [situationId]: {
+                ...current,
+                // Committing a volume necessarily means carrying the item
+                // forward — a number that bears no load is not a commitment.
+                dispositions: { ...current.dispositions, [commitment.candidateId]: "carry_forward" },
+                commitments: { ...current.commitments, [commitment.candidateId]: commitment },
+              },
+            },
+          };
+        }),
+
+      releaseCommitment: (situationId, candidateId) =>
+        set((state) => {
+          const current = state.overridesBySituation[situationId];
+          if (!current?.commitments) return state;
+          const next = { ...current.commitments };
+          delete next[candidateId];
+          return {
+            overridesBySituation: {
+              ...state.overridesBySituation,
+              [situationId]: { ...current, commitments: next },
             },
           };
         }),

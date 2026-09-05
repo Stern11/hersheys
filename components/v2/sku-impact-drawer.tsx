@@ -18,12 +18,12 @@ import Link from "next/link";
 import { ArrowRight, Sliders } from "lucide-react";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DISPOSITION_ORDER, dispositionLabel, MaterialStatusBadge } from "@/components/v2/state-badge";
+import { DISPOSITION_ORDER, dispositionLabel } from "@/components/v2/state-badge";
+import { LineLoadChart, MaterialClockChart } from "@/components/v2/sku-charts";
 import { Label } from "@/components/v2/page";
 import { matchExplanation, skuImpact, type SkuImpact } from "@/lib/situations/sku-impact";
-import { formatMonthLabel } from "@/lib/dataset/periods";
 import { cn } from "@/lib/utils/cn";
-import { fmtDateShort, fmtHours, fmtMoney, fmtNum, fmtPct, fmtUnits, fmtWeeks } from "@/lib/utils/format";
+import { fmtHours, fmtMoney, fmtUnits } from "@/lib/utils/format";
 import type { ContributorDisposition, PlanningSituation } from "@/types/situation";
 
 export function SkuImpactDrawer({
@@ -147,44 +147,7 @@ function Body({
               : "Mark this item carry forward to see the hours it would add."}
           </Note>
         ) : (
-          <div className="flex flex-col gap-2.5">
-            {impact.lines.map((line) => (
-              <div
-                key={line.lineId}
-                className="rounded-[var(--radius-sm)] border border-[var(--border)] px-3 py-2.5"
-              >
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="truncate text-[13px] font-medium text-[var(--text-primary)]">
-                    {line.lineName}
-                  </span>
-                  <span className="flex-none text-[13px] font-medium tabular-nums text-[var(--text-primary)]">
-                    {fmtHours(line.hours)}
-                  </span>
-                </div>
-                <div className="mt-1 flex flex-wrap items-baseline gap-x-3 text-[11.5px] text-[var(--text-muted)]">
-                  <span>
-                    {fmtPct(line.shareOfUnresolved)} of this line&rsquo;s unresolved hours
-                  </span>
-                  <span
-                    className={cn(
-                      line.isExposed ? "font-medium text-[var(--risk-warning)]" : undefined
-                    )}
-                  >
-                    Line peaks at {fmtPct(line.peakEffectiveUtilization)}
-                    {line.isExposed ? " — over target" : ""}
-                  </span>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11.5px] tabular-nums text-[var(--text-muted)]">
-                  {line.byPeriod.map((p) => (
-                    <span key={p.period}>
-                      {formatMonthLabel(p.period)}{" "}
-                      <span className="text-[var(--text-secondary)]">{fmtHours(p.hours)}</span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+          <LineLoadChart lines={impact.lines} />
         )}
       </section>
 
@@ -208,65 +171,11 @@ function Body({
               : "Mark this item carry forward to see the components it would require."}
           </Note>
         ) : (
-          <>
-            <table className="w-full border-collapse text-[12.5px]">
-              <thead>
-                <tr className="border-b border-[var(--border)] text-left">
-                  <Th>Component</Th>
-                  <Th numeric>This item needs</Th>
-                  <Th numeric>Order by</Th>
-                  <Th>Readiness</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {impact.materials.map((m) => (
-                  <tr key={m.materialId} className="border-b border-[var(--border)] last:border-0">
-                    <td className="py-2 pr-3 align-top">
-                      <div className="font-medium text-[var(--text-primary)]">{m.materialName}</div>
-                      <div className="mt-1">
-                        <SourcingTag
-                          standsAlone={m.standsWithoutThisItem}
-                          sourcing={m.sourcing}
-                        />
-                      </div>
-                    </td>
-                    <td className="py-2 pr-3 text-right align-top tabular-nums">
-                      <div className="text-[var(--text-primary)]">
-                        {fmtNum(Math.round(m.requirement))} {m.uom}
-                      </div>
-                      <div className="mt-0.5 text-[11.5px] text-[var(--text-muted)]">
-                        {shareText(m.shareOfTotal)} of total
-                      </div>
-                    </td>
-                    <td className="py-2 pr-3 text-right align-top tabular-nums">
-                      <div className="text-[var(--text-primary)]">{fmtDateShort(m.decisionDate)}</div>
-                      <div
-                        className={cn(
-                          "mt-0.5 text-[11.5px]",
-                          m.weeksToDecision <= 8
-                            ? "font-medium text-[var(--risk-warning)]"
-                            : "text-[var(--text-muted)]"
-                        )}
-                      >
-                        {fmtWeeks(m.weeksToDecision)} · {m.leadTimeDays}d ({basisWord(m.leadTimeBasis)})
-                      </div>
-                    </td>
-                    <td className="py-2 align-top">
-                      <MaterialStatusBadge status={m.status} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <p className="mt-3 text-[11.5px] leading-relaxed text-[var(--text-muted)]">
-              <span className="text-[var(--text-secondary)]">Shared</span> means another item you
-              have already carried forward needs the component too, so it can be ordered whatever
-              you decide here.{" "}
-              <span className="text-[var(--text-secondary)]">Waits on this</span> means nothing else
-              settled justifies it yet. Readiness is the component&rsquo;s state across the whole
-              situation, not this item alone.
-            </p>
-          </>
+          <MaterialClockChart
+            materials={impact.materials}
+            today={situation.runway.today}
+            productionStart={situation.productionWindow?.start}
+          />
         )}
       </section>
 
@@ -449,34 +358,6 @@ function Representation({ impact }: { impact: SkuImpact }) {
   );
 }
 
-/**
- * Whether the component stands on other items' evidence.
- *
- * A tag rather than a sentence per row: the same explanation repeated down a
- * table is noise, so it is said once in the caption underneath instead.
- */
-function SourcingTag({
-  standsAlone,
-  sourcing,
-}: {
-  standsAlone: boolean;
-  sourcing: "shared" | "item_specific";
-}) {
-  const label = standsAlone ? "Shared" : sourcing === "item_specific" ? "Only this item" : "Waits on this";
-  return (
-    <span
-      className={cn(
-        "inline-block rounded-[var(--radius-sm)] px-1.5 py-0.5 text-[11px]",
-        standsAlone
-          ? "bg-[var(--state-validated-soft)] text-[var(--state-validated)]"
-          : "bg-[var(--state-unknown-soft)] text-[var(--text-muted)]"
-      )}
-    >
-      {label}
-    </span>
-  );
-}
-
 function Chip({ children, tone }: { children: string; tone: "same" | "different" }) {
   return (
     <span
@@ -505,38 +386,4 @@ function SectionTitle({ children, aside }: { children: React.ReactNode; aside?: 
 
 function Note({ children }: { children: React.ReactNode }) {
   return <p className="text-[12.5px] text-[var(--text-muted)]">{children}</p>;
-}
-
-function Th({ children, numeric }: { children: React.ReactNode; numeric?: boolean }) {
-  return (
-    <th
-      className={cn(
-        "pb-1.5 pr-3 text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-muted)]",
-        numeric && "text-right"
-      )}
-    >
-      {children}
-    </th>
-  );
-}
-
-/**
- * A share that never rounds away the fact that something else is in the mix.
- *
- * A component four items need, one of which takes 99.9%, must not print
- * "100% of total" next to a "Shared" tag — the two would contradict each other
- * on the same row.
- */
-function shareText(share: number): string {
-  if (share >= 1) return "100%";
-  if (share > 0.99) return ">99%";
-  if (share > 0 && share < 0.01) return "<1%";
-  return fmtPct(share);
-}
-
-function basisWord(basis: string): string {
-  if (basis === "historical_p80") return "historical P80";
-  if (basis === "historical_median") return "historical median";
-  if (basis === "scenario") return "scenario";
-  return "system";
 }

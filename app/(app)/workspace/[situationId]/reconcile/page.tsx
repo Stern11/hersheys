@@ -254,13 +254,13 @@ export default function ReconcilePage({ params }: { params: Promise<{ situationI
       <div className="mt-8 flex items-center justify-between border-t border-[var(--border)] pt-5">
         <p className="text-[12.5px] text-[var(--text-muted)]">
           <Label className="mb-1">Next</Label>
-          What can already be planned from {fmtUnits(bridge.validatedUnits, true)} carrying forward
+          What {fmtUnits(bridge.validatedUnits, true)} carrying forward commits you to, and by when
         </p>
         <Link
-          href={`/workspace/${situationId}/supply`}
+          href={`/workspace/${situationId}/decide`}
           className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] bg-[var(--accent)] px-3.5 py-2 text-[13px] font-medium text-[var(--text-on-accent)] transition-opacity hover:opacity-90"
         >
-          Plan supply
+          Decide
           <ArrowRight className="size-3.5" />
         </Link>
       </div>

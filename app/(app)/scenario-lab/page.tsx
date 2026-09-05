@@ -20,9 +20,13 @@ import { Page } from "@/components/v2/page";
 function ScenarioLabRoute() {
   const searchParams = useSearchParams();
   const situationId = searchParams.get("situation");
+  // `?item=` is how the SKU drawer hands off: the lab opens with that item's
+  // volume row focused, so "adjust this" lands on the control rather than on a
+  // list the planner then has to search.
+  const focusItemId = searchParams.get("item") ?? undefined;
 
   if (!situationId) return <SituationPicker />;
-  return <ScenarioLabShell situationId={situationId} />;
+  return <ScenarioLabShell situationId={situationId} focusItemId={focusItemId} />;
 }
 
 export default function ScenarioLabPage() {

@@ -77,9 +77,26 @@ export function DatasetProvider({ children }: { children: ReactNode }) {
 
   const dataset = mode === "DEMO" ? demo : uploaded;
 
+  // A committed volume is part of the baseline plan from the moment it is
+  // committed — that is what separates it from a scenario the planner is still
+  // playing with. It is applied as an override rather than written into the
+  // dataset, so the workbook it came from stays untouched.
+  const committedVolumes = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const overrides of Object.values(overridesBySituation)) {
+      for (const commitment of Object.values(overrides.commitments ?? {})) {
+        out[commitment.candidateId] = commitment.units;
+      }
+    }
+    return out;
+  }, [overridesBySituation]);
+
   const situations = useMemo(
-    () => (dataset ? buildSituations(dataset, { overridesBySituation }) : []),
-    [dataset, overridesBySituation]
+    () =>
+      dataset
+        ? buildSituations(dataset, { overridesBySituation, volumeOverrideUnits: committedVolumes })
+        : [],
+    [dataset, overridesBySituation, committedVolumes]
   );
 
   const value = useMemo<DatasetContextValue>(
