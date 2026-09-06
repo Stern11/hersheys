@@ -12,7 +12,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BaselineScenarioToggle } from "./baseline-scenario-toggle";
 import { CapacityCellDetail, CapacityMatrix } from "@/components/v2/capacity-matrix";
 import { MetricRow, NotAvailable, SectionRule, type MetricItem, type MetricTone } from "@/components/v2/page";
 import type { CapacityExposure, PlanningSituation } from "@/types/situation";
@@ -111,12 +110,10 @@ export function ImpactPanel({
   baseline,
   scenario,
   viewMode,
-  onViewModeChange,
 }: {
   baseline: PlanningSituation;
   scenario: PlanningSituation;
   viewMode: "baseline" | "scenario";
-  onViewModeChange: (mode: "baseline" | "scenario") => void;
 }) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
@@ -138,10 +135,10 @@ export function ImpactPanel({
     <div>
       <MetricRow items={metrics} />
 
-      <SectionRule
-        label="Effective utilisation by line and month"
-        action={<BaselineScenarioToggle mode={viewMode} onChange={onViewModeChange} />}
-      />
+      {/* The Baseline/Scenario toggle lives once, in the toolbar — a second
+          copy of the same control on the same screen is not a shortcut, it is
+          two things to keep in sync by eye. */}
+      <SectionRule label="Effective utilisation by line and month" />
 
       {!activeExposure.available ? (
         <NotAvailable

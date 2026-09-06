@@ -177,7 +177,7 @@ export function BusinessToPlanBridge({
             {byFamily.map((row) => (
               <div key={row.family} className="grid grid-cols-[150px_1fr_74px] items-center gap-3">
                 <span className="truncate text-[12.5px] text-[var(--text-secondary)]">{row.family}</span>
-                <span className="h-[10px] w-full overflow-hidden rounded-[3px] bg-[var(--surface-sunken)]">
+                <span className="h-[10px] w-full overflow-hidden rounded-[3px] bg-[var(--chart-track)]">
                   <span
                     className="block h-full rounded-[3px] bg-[var(--state-validated)]"
                     style={{ width: `${(row.value / familyMax) * 100}%` }}

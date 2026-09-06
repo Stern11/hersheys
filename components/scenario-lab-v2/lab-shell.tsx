@@ -11,7 +11,7 @@
 
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useDataset } from "@/components/dataset/dataset-provider";
 import { useDatasetStore } from "@/stores/dataset-store";
@@ -61,6 +61,9 @@ export function ScenarioLabShell({
     [scenarios, situationId]
   );
 
+  // Which situation we have already auto-created a scenario for.
+  const autoCreatedFor = useRef<string | null>(null);
+
   const rawActive = activeScenarioId ? scenarios[activeScenarioId] : undefined;
   const activeScenario = rawActive?.situationId === situationId ? rawActive : undefined;
 
@@ -73,8 +76,30 @@ export function ScenarioLabShell({
     if (!hasHydrated) return;
     if (activeScenario) return;
     const fallback = scenariosForSituation[0];
-    setActiveScenario(fallback ? fallback.id : null);
-  }, [hasHydrated, activeScenario, scenariosForSituation, setActiveScenario]);
+    if (fallback) {
+      setActiveScenario(fallback.id);
+      return;
+    }
+    // No scenario for this situation yet: make one rather than showing an
+    // empty column and asking the planner to press a button before the page
+    // does anything. The lab is supposed to open on the situation ready to
+    // work (V2 §10.5), and an untouched scenario is identical to the baseline
+    // anyway — so creating it costs nothing and removes a dead first screen.
+    //
+    // Guarded by a ref, not by the store: the store write is asynchronous, so
+    // the effect can re-run with `activeScenario` still undefined and create a
+    // second identical scenario before the first one lands.
+    if (autoCreatedFor.current === situationId) return;
+    autoCreatedFor.current = situationId;
+    createScenario(situationId, "Scenario 1", new Date().toISOString());
+  }, [
+    hasHydrated,
+    activeScenario,
+    scenariosForSituation,
+    setActiveScenario,
+    createScenario,
+    situationId,
+  ]);
 
   const adjustments = activeScenario?.adjustments ?? EMPTY_ADJUSTMENTS;
 
@@ -179,16 +204,11 @@ export function ScenarioLabShell({
                 />
                 <ControlsMaterials scenarioId={activeScenario.id} baseline={baseline} adjustments={adjustments} />
               </>
-            ) : (
-              <p className="pt-2 text-[12.5px] leading-snug text-[var(--text-muted)]">
-                No scenario yet. Start one to change what an item carries forward, and to test
-                capacity, line allocation and lead-time assumptions against it.
-              </p>
-            )}
+            ) : null}
           </aside>
 
           <div className="min-w-0 flex-1">
-            <ImpactPanel baseline={baseline} scenario={effectiveScenario} viewMode={viewMode} onViewModeChange={setViewMode} />
+            <ImpactPanel baseline={baseline} scenario={effectiveScenario} viewMode={viewMode} />
 
             <SectionRule label="Changes" />
             <ChangesList

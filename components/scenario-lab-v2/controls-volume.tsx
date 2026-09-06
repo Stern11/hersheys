@@ -42,16 +42,14 @@ export function ControlsVolume({
   const overrides = adjustments.volumeUnits ?? {};
   const hasOverrides = Object.keys(overrides).length > 0;
 
-  // Items that bear load come first — they are what a scenario actually moves.
-  // The rest stay reachable, because raising a volume is often the reason a
-  // planner changes their mind about carrying an item at all.
-  const items = [...baseline.candidateItems].sort((a, b) => {
-    const load = Number(bearsLoad(b)) - Number(bearsLoad(a));
-    if (load !== 0) return load;
-    return b.plannedUnits - a.plannedUnits;
-  });
+  // Only items that actually bear load. Listing every candidate put twenty
+  // greyed-out rows a planner cannot act on above the five they can, and a
+  // control whose rows mostly do nothing is worse than a shorter one.
+  const items = [...baseline.candidateItems]
+    .filter(bearsLoad)
+    .sort((a, b) => b.plannedUnits - a.plannedUnits);
 
-  const carrying = items.filter(bearsLoad);
+  const notCarrying = baseline.candidateItems.length - items.length;
 
   return (
     <CollapsibleGroup
@@ -72,17 +70,11 @@ export function ControlsVolume({
     >
       {items.length === 0 ? (
         <p className="text-[12px] leading-snug text-[var(--text-muted)]">
-          No prior-season items to carry forward.
+          Nothing is carrying forward yet, so there is no volume to change. Mark an item carry
+          forward on Reconcile first.
         </p>
       ) : (
-        <div className="flex flex-col gap-1">
-          {carrying.length === 0 ? (
-            <p className="mb-2 text-[12px] leading-snug text-[var(--text-muted)]">
-              Nothing is marked carry forward yet, so a volume change moves nothing. Set a decision
-              on Reconcile first.
-            </p>
-          ) : null}
-
+        <div className="flex flex-col">
           {items.map((item) => (
             <VolumeRow
               key={item.id}
@@ -93,6 +85,12 @@ export function ControlsVolume({
               onClear={() => clearAdjustment(scenarioId, "volumeUnits", item.id)}
             />
           ))}
+          {notCarrying > 0 ? (
+            <p className="mt-2.5 text-[11px] leading-snug text-[var(--text-muted)]">
+              {notCarrying} other prior item{notCarrying === 1 ? "" : "s"} bear no load. Carry one
+              forward on Reconcile to change its volume here.
+            </p>
+          ) : null}
         </div>
       )}
     </CollapsibleGroup>
@@ -112,31 +110,24 @@ function VolumeRow({
   onCommit: (value: number) => void;
   onClear: () => void;
 }) {
-  const loadBearing = bearsLoad(item);
   // The basis figure is what the row is measured against — not the historical
   // actual, which is a different number and would make every untouched row
   // look changed.
   const basisUnits = item.plannedBasis.inferredUnits;
+  const changed = override !== undefined && Math.abs(override - basisUnits) >= 0.5;
 
   return (
     <div
       id={`volume-${item.id}`}
       className={cn(
-        "rounded-[var(--radius-sm)] px-2 py-1.5 transition-colors",
-        focused && "bg-[var(--interaction-selected)] ring-1 ring-[var(--interaction-selected-border)]",
-        !loadBearing && "opacity-60"
+        "border-b border-[var(--border)] px-2 py-2.5 last:border-b-0 transition-colors",
+        focused && "bg-[var(--interaction-selected)]",
+        changed && !focused && "bg-[var(--state-scenario-soft)]"
       )}
       style={{ transitionDuration: "var(--duration-medium)" }}
     >
-      <div className="mb-1 flex items-baseline justify-between gap-2">
-        <span className="truncate text-[12px] font-medium text-[var(--text-primary)]">
-          {item.itemName}
-        </span>
-        {!loadBearing ? (
-          <span className="flex-none text-[10.5px] uppercase tracking-[0.06em] text-[var(--text-muted)]">
-            no load
-          </span>
-        ) : null}
+      <div className="mb-1.5 truncate text-[12.5px] font-medium text-[var(--text-primary)]">
+        {item.itemName}
       </div>
 
       <FieldRow
@@ -151,11 +142,11 @@ function VolumeRow({
         inputWidth={96}
       />
 
-      <div className="mt-0.5 text-[10.5px] tabular-nums text-[var(--text-muted)]">
-        Sold {fmtUnits(item.actualUnits)} · basis {fmtUnits(basisUnits)}
+      <div className="mt-1 text-[11px] tabular-nums text-[var(--text-secondary)]">
+        Sold {fmtUnits(item.actualUnits)}
         {item.plannedBasis.growthPct !== 0
-          ? ` (${item.plannedBasis.growthPct > 0 ? "+" : ""}${(item.plannedBasis.growthPct * 100).toFixed(1)}%)`
-          : ""}
+          ? ` · basis ${item.plannedBasis.growthPct > 0 ? "+" : ""}${(item.plannedBasis.growthPct * 100).toFixed(1)}%`
+          : " · no growth applied"}
       </div>
     </div>
   );

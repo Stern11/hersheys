@@ -27,9 +27,15 @@ function band(cell: CapacityCell): "clear" | "near" | "over" | "breach" {
   return "clear";
 }
 
+/**
+ * The escalation is carried by how much colour a cell takes, not by four
+ * different fills. A warning-hue block at dark-theme lightness reads brown
+ * rather than amber, so "approaching" tints the number and leaves the cell
+ * alone; only a real breach earns a solid fill.
+ */
 const BAND_STYLE: Record<ReturnType<typeof band>, string> = {
   clear: "bg-[var(--surface)] text-[var(--text-secondary)]",
-  near: "bg-[var(--risk-warning-soft)] text-[var(--text-primary)]",
+  near: "bg-[var(--surface)] text-[var(--risk-warning)]",
   over: "bg-[var(--risk-critical-soft)] text-[var(--risk-critical)]",
   breach: "bg-[var(--risk-critical)] text-[var(--text-on-accent)]",
 };
@@ -135,7 +141,7 @@ export function CapacityMatrix({
 
       <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] text-[var(--text-muted)]">
         <LegendSwatch className="bg-[var(--surface)] border border-[var(--border)]" label="Within target" />
-        <LegendSwatch className="bg-[var(--risk-warning-soft)]" label="Approaching target" />
+        <LegendSwatch className="bg-[var(--risk-warning)]" label="Approaching target" />
         <LegendSwatch className="bg-[var(--risk-critical-soft)]" label="Over target" />
         <LegendSwatch className="bg-[var(--risk-critical)]" label="Well over target" />
         <span className="flex items-center gap-1.5">

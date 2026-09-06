@@ -3,172 +3,148 @@
 /**
  * Decide (V2 §49-50).
  *
- * One question: what do I need to do now? The runway makes the first
- * irreversible date obvious; the action list is built from what the real
- * situation actually justifies, never a fixed menu of buttons.
+ * One question: what do I have to decide, and by when?
+ *
+ * The page used to open on "Runway remaining: 10 weeks" — a number with no
+ * subject, which left a planner to reconstruct what was actually running out.
+ * Every row now names the thing being decided, the date it stops being
+ * reversible, and the products that put it on the calendar.
  */
 
 import { use, useMemo } from "react";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { AlertTriangle, ArrowRight } from "lucide-react";
 import { useSituation } from "@/components/dataset/dataset-provider";
+import { useDatasetStore } from "@/stores/dataset-store";
 import { RunwayTimeline } from "@/components/v2/runway";
-import { HeroMetric, Page, SectionRule } from "@/components/v2/page";
-import { formatMonthLabel } from "@/lib/dataset/periods";
-import { fmtDateShort, fmtMoney, fmtUnits, fmtWeeks } from "@/lib/utils/format";
+import { Label, NotAvailable, Page, SectionRule } from "@/components/v2/page";
+import {
+  blockedMaterials,
+  pendingDecisions,
+  type DecisionUrgency,
+  type PendingDecision,
+} from "@/lib/situations/decisions";
+import { cn } from "@/lib/utils/cn";
+import { fmtDateShort, fmtUnits, fmtWeeks } from "@/lib/utils/format";
+import type { VolumeCommitment } from "@/types/situation";
 
-interface Action {
-  key: string;
-  title: string;
-  rationale: string;
-  href: string;
-  cta: string;
-}
+const EMPTY_COMMITMENTS: Record<string, VolumeCommitment> = {};
 
 export default function DecidePage({ params }: { params: Promise<{ situationId: string }> }) {
   const { situationId } = use(params);
   const situation = useSituation(situationId);
+  const stored = useDatasetStore((s) => s.overridesBySituation[situationId]?.commitments);
+  const releaseCommitment = useDatasetStore((s) => s.releaseCommitment);
+  const commitments = Object.values(stored ?? EMPTY_COMMITMENTS);
 
-  const actions = useMemo<Action[]>(() => {
-    if (!situation) return [];
-    const { capacityExposure, materialExposure, bridge, state } = situation;
-    const list: Action[] = [];
-
-    const peak = capacityExposure.peak;
-    if (peak && capacityExposure.exposedLineIds.length > 0) {
-      const alternate = capacityExposure.cells
-        .filter((c) => c.period === peak.period && c.lineId !== peak.lineId)
-        .find((c) => c.effectiveUtilization <= c.targetUtilizationPct * 0.85);
-      if (alternate) {
-        list.push({
-          key: "shift",
-          title: "Shift load to another line",
-          rationale: `${peak.lineName} runs ${Math.round(peak.effectiveUtilization * 100)}% in ${formatMonthLabel(
-            peak.period
-          )} while ${alternate.lineName} runs ${Math.round(alternate.effectiveUtilization * 100)}%.`,
-          href: `/scenario-lab?situation=${situationId}`,
-          cta: "Open in Scenario Lab",
-        });
-      }
-    }
-
-    if (peak) {
-      const periodIndex = capacityExposure.periods.indexOf(peak.period);
-      if (periodIndex > 0) {
-        list.push({
-          key: "pull-forward",
-          title: "Pull production forward",
-          rationale: `${peak.lineName} peaks in ${formatMonthLabel(peak.period)} — earlier months have room to absorb some of that load.`,
-          href: `/scenario-lab?situation=${situationId}`,
-          cta: "Open in Scenario Lab",
-        });
-      }
-    }
-
-    list.push({
-      key: "carry-forward",
-      title: "Adjust what carries forward",
-      rationale: `${fmtUnits(bridge.validatedUnits, true)} is currently validated as carrying forward.`,
-      href: `/workspace/${situationId}/reconcile`,
-      cta: "Open reconcile",
-    });
-
-    const planNow = materialExposure.available
-      ? [...materialExposure.rows]
-          .filter((r) => r.status === "PLAN_NOW")
-          .sort((a, b) => a.decisionDate.localeCompare(b.decisionDate))[0]
-      : undefined;
-    if (planNow) {
-      list.push({
-        key: "commit-materials",
-        title: "Commit long-lead materials",
-        rationale: `${planNow.materialName} is decision-ready by ${fmtDateShort(planNow.decisionDate)}.`,
-        href: `/workspace/${situationId}/reconcile`,
-        cta: "See which items need it",
-      });
-    }
-
-    if (bridge.unexplainedValue > 0) {
-      list.push({
-        key: "firmer-plan",
-        title: "Request a firmer plan",
-        rationale: `${fmtMoney(bridge.unexplainedValue, bridge.currency)} of the unresolved amount has no prior item explaining it.`,
-        href: `/workspace/${situationId}/reconcile`,
-        cta: "Open reconcile",
-      });
-    }
-
-    if (state === "MONITOR" || state === "FORMING") {
-      list.push({
-        key: "monitor",
-        title: "Keep monitoring",
-        rationale: "Nothing here requires action yet — revisit as more of the plan formalizes.",
-        href: "/workspace",
-        cta: "Back to workspace",
-      });
-    }
-
-    return list;
-  }, [situation, situationId]);
+  const decisions = useMemo(() => (situation ? pendingDecisions(situation) : []), [situation]);
+  const blocked = useMemo(() => (situation ? blockedMaterials(situation) : []), [situation]);
 
   if (!situation) return <Page>{null}</Page>;
 
-  const { runway } = situation;
+  const next = decisions.find((d) => d.urgency !== "later") ?? decisions[0];
 
   return (
     <Page>
-      <div className="pt-7">
-        <HeroMetric
-          label="Runway remaining"
-          value={runway.weeksOfRunway !== undefined ? fmtWeeks(runway.weeksOfRunway) : "—"}
-          tone={
-            runway.weeksOfRunway === undefined
-              ? "muted"
-              : runway.weeksOfRunway <= 8
-                ? "critical"
-                : "positive"
-          }
-          sub={
-            runway.earliest
-              ? `${runway.earliest.label} · ${fmtDateShort(runway.earliest.date)}`
-              : "No dated decision found"
-          }
-        />
+      <div className="pt-5">
+        {next ? (
+          <NextDecision decision={next} />
+        ) : (
+          <NotAvailable
+            title="Nothing is waiting on you"
+            detail="No dated commitment follows from what is currently carrying forward."
+          />
+        )}
       </div>
 
-      <SectionRule label="Decision runway" />
-      <RunwayTimeline runway={runway} />
-
-      <SectionRule label="What you can do now" />
-      {actions.length > 0 ? (
-        <div>
-          {actions.map((action) => (
-            <div
-              key={action.key}
-              className="flex items-center justify-between gap-6 border-b border-[var(--border)] py-3.5 last:border-b-0"
-            >
-              <div className="min-w-0">
-                <p className="text-[13.5px] font-medium text-[var(--text-primary)]">{action.title}</p>
-                <p className="mt-0.5 text-[12.5px] text-[var(--text-secondary)]">{action.rationale}</p>
-              </div>
-              <Link
-                href={action.href}
-                className="inline-flex flex-none items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-strong)] px-3 py-1.5 text-[12.5px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--interaction-hover)]"
-              >
-                {action.cta}
-                <ArrowRight className="size-3.5" />
-              </Link>
-            </div>
+      <SectionRule label={`Everything on the calendar · ${decisions.length}`} />
+      {decisions.length > 0 ? (
+        <div className="divide-y divide-[var(--border)] border-y border-[var(--border)]">
+          {decisions.map((decision) => (
+            <DecisionRow key={decision.id} decision={decision} />
           ))}
         </div>
       ) : (
-        <p className="text-[13px] text-[var(--text-muted)]">Nothing here currently justifies an action.</p>
+        <p className="text-[13px] text-[var(--text-muted)]">
+          Nothing carries forward yet, so nothing has a date on it.
+        </p>
       )}
 
-      <SectionRule label="Evidence" />
-      <div className="grid grid-cols-2 gap-x-10 gap-y-2.5">
+      {blocked.length > 0 ? (
+        <>
+          <SectionRule label={`Cannot be committed yet · ${blocked.length}`} />
+          <div className="flex flex-col gap-1.5">
+            {blocked.map((row) => (
+              <div
+                key={row.materialName}
+                className="flex items-baseline justify-between gap-4 rounded-[var(--radius-sm)] bg-[var(--surface)] px-3.5 py-2.5"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="text-[13px] font-medium text-[var(--text-primary)]">
+                    {row.materialName}
+                  </span>
+                  <span className="ml-2 text-[12px] text-[var(--text-muted)]">{row.reason}</span>
+                </span>
+                {row.blockedBy ? (
+                  <span className="flex-none text-[11.5px] text-[var(--text-muted)]">
+                    waiting on {row.blockedBy}
+                  </span>
+                ) : null}
+              </div>
+            ))}
+          </div>
+          <p className="mt-2.5 text-[11.5px] leading-relaxed text-[var(--text-muted)]">
+            These are held by a decision rather than by a lead time. Ordering them early is the risk
+            this product exists to avoid — stable ingredients being predictable does not make
+            uncertain packaging orderable.
+          </p>
+        </>
+      ) : null}
+
+      {commitments.length > 0 ? (
+        <>
+          <SectionRule label={`Committed by you · ${commitments.length}`} />
+          <div className="divide-y divide-[var(--border)] border-y border-[var(--border)]">
+            {commitments.map((c) => (
+              <div key={c.candidateId} className="flex items-baseline justify-between gap-4 py-3">
+                <div className="min-w-0">
+                  <div className="truncate text-[13px] font-medium text-[var(--text-primary)]">
+                    {c.itemName}
+                  </div>
+                  <div className="truncate text-[11.5px] text-[var(--text-muted)]">
+                    {c.basisLabel} would have carried {fmtUnits(c.basisUnits)} · committed{" "}
+                    {fmtDateShort(c.committedAt)}
+                  </div>
+                </div>
+                <div className="flex flex-none items-baseline gap-4">
+                  <span className="text-[13px] font-medium tabular-nums text-[var(--state-scenario)]">
+                    {fmtUnits(c.units)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => releaseCommitment(situationId, c.candidateId)}
+                    className="text-[11.5px] text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
+                    style={{ transitionDuration: "var(--duration-fast)" }}
+                  >
+                    Release
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      <SectionRule label="Production and sales timing" />
+      <RunwayTimeline runway={situation.runway} />
+
+      <SectionRule label="What this is built from" />
+      <div className="grid grid-cols-1 gap-x-10 gap-y-1 sm:grid-cols-2">
         {situation.evidence.map((row) => (
-          <div key={row.id} className="flex items-baseline justify-between gap-4 border-b border-[var(--border)] py-1.5">
+          <div
+            key={row.id}
+            className="flex items-baseline justify-between gap-4 border-b border-[var(--border)] py-2"
+          >
             <div className="min-w-0">
               <div className="truncate text-[12.5px] text-[var(--text-primary)]">{row.label}</div>
               <div className="truncate text-[11.5px] text-[var(--text-muted)]">
@@ -176,10 +152,151 @@ export default function DecidePage({ params }: { params: Promise<{ situationId: 
                 {row.detail ? ` · ${row.detail}` : ""}
               </div>
             </div>
-            <div className="flex-none text-[12.5px] tabular-nums text-[var(--text-secondary)]">{row.value}</div>
+            <div className="flex-none text-[12.5px] tabular-nums text-[var(--text-secondary)]">
+              {row.value}
+            </div>
           </div>
         ))}
       </div>
     </Page>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Pieces                                                              */
+/* ------------------------------------------------------------------ */
+
+function NextDecision({ decision }: { decision: PendingDecision }) {
+  return (
+    <div
+      className={cn(
+        "rounded-[var(--radius-lg)] border px-7 py-6",
+        decision.urgency === "overdue"
+          ? "border-[var(--risk-critical)] bg-[var(--risk-critical-soft)]"
+          : decision.urgency === "urgent"
+            ? "border-[var(--risk-warning)] bg-[var(--risk-warning-soft)]"
+            : "border-[var(--border)] bg-[var(--surface)]"
+      )}
+    >
+      <Label>Next decision</Label>
+      <div className="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+        <span className="text-[26px] font-semibold leading-tight tracking-tight text-[var(--text-primary)]">
+          {decision.title}
+        </span>
+        {decision.date ? (
+          <span className="text-[15px] tabular-nums text-[var(--text-secondary)]">
+            by {fmtDateShort(decision.date)}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-baseline gap-x-3">
+        <UrgencyText urgency={decision.urgency} weeksAway={decision.weeksAway} />
+        <span className="text-[13px] text-[var(--text-secondary)]">{decision.consequence}</span>
+      </div>
+
+      {decision.drivenBy.length > 0 ? (
+        <div className="mt-3 text-[12.5px] text-[var(--text-muted)]">
+          Needed for{" "}
+          <span className="text-[var(--text-secondary)]">{decision.drivenBy.join(", ")}</span>
+        </div>
+      ) : null}
+
+      <Link
+        href={decision.href}
+        className="mt-5 inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] bg-[var(--accent)] px-3.5 py-2 text-[13px] font-medium text-[var(--text-on-accent)] transition-opacity hover:opacity-90"
+        style={{ transitionDuration: "var(--duration-fast)" }}
+      >
+        {decision.cta}
+        <ArrowRight className="size-3.5" />
+      </Link>
+    </div>
+  );
+}
+
+function DecisionRow({ decision }: { decision: PendingDecision }) {
+  return (
+    <Link
+      href={decision.href}
+      className="group flex items-center gap-5 py-3.5 transition-colors hover:bg-[var(--interaction-hover)]"
+      style={{ transitionDuration: "var(--duration-fast)" }}
+    >
+      <div className="w-[104px] flex-none text-right">
+        <div
+          className={cn(
+            "text-[13px] font-medium tabular-nums",
+            decision.urgency === "overdue"
+              ? "text-[var(--risk-critical)]"
+              : decision.urgency === "urgent"
+                ? "text-[var(--risk-warning)]"
+                : "text-[var(--text-primary)]"
+          )}
+        >
+          {decision.date ? fmtDateShort(decision.date) : "Undated"}
+        </div>
+        <div className="text-[11px] text-[var(--text-muted)]">
+          {decision.weeksAway !== undefined ? fmtWeeks(decision.weeksAway) : "—"}
+        </div>
+      </div>
+
+      <span
+        className={cn(
+          "h-8 w-[3px] flex-none rounded-full",
+          decision.urgency === "overdue"
+            ? "bg-[var(--risk-critical)]"
+            : decision.urgency === "urgent"
+              ? "bg-[var(--risk-warning)]"
+              : decision.urgency === "soon"
+                ? "bg-[var(--state-validated)]"
+                : "bg-[var(--border-strong)]"
+        )}
+      />
+
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[13.5px] font-medium text-[var(--text-primary)]">
+          {decision.title}
+        </div>
+        <div className="truncate text-[12px] text-[var(--text-muted)]">
+          {decision.consequence}
+          {decision.drivenBy.length > 0
+            ? ` · for ${decision.drivenBy[0]}${
+                decision.drivenBy.length > 1 ? ` +${decision.drivenBy.length - 1}` : ""
+              }`
+            : ""}
+        </div>
+      </div>
+
+      <ArrowRight className="size-3.5 flex-none text-[var(--text-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
+    </Link>
+  );
+}
+
+function UrgencyText({
+  urgency,
+  weeksAway,
+}: {
+  urgency: DecisionUrgency;
+  weeksAway: number | undefined;
+}) {
+  if (urgency === "overdue") {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[var(--risk-critical)]">
+        <AlertTriangle className="size-3.5" />
+        Already past
+      </span>
+    );
+  }
+  if (weeksAway === undefined) {
+    return <span className="text-[13px] text-[var(--text-muted)]">No date yet</span>;
+  }
+  return (
+    <span
+      className={cn(
+        "text-[13px] font-semibold tabular-nums",
+        urgency === "urgent" ? "text-[var(--risk-warning)]" : "text-[var(--text-primary)]"
+      )}
+    >
+      {fmtWeeks(weeksAway)} left
+    </span>
   );
 }

@@ -95,7 +95,7 @@ function LineBar({ bar }: { bar: LineLoadBar }) {
         </span>
       </div>
 
-      <div className="relative h-[22px] rounded-[3px] bg-[var(--surface-sunken)]">
+      <div className="relative h-[22px] rounded-[3px] bg-[var(--chart-track)]">
         <div
           className="absolute inset-y-0 left-0 rounded-l-[3px] bg-[var(--state-formal)] transition-[width]"
           style={{
@@ -183,52 +183,52 @@ export function MaterialClockChart({
         </p>
       ) : null}
 
-      {/* Month scale */}
-      <div className="relative mb-1.5 h-[14px]">
-        {clock.ticks.map((tick) => (
-          <span
-            key={tick.label + tick.pct}
-            className="absolute -translate-x-1/2 text-[10.5px] text-[var(--text-muted)]"
-            style={{ left: `${tick.pct}%` }}
-          >
-            {tick.label}
-          </span>
-        ))}
-      </div>
-
-      <div className="relative flex flex-col gap-1">
-        {/* Gridlines and today, drawn behind every row. */}
-        <div className="pointer-events-none absolute inset-0">
-          {clock.ticks.map((tick) => (
-            <div
-              key={tick.label + tick.pct}
-              className="absolute inset-y-0 w-px bg-[var(--chart-gridline-color)]"
-              style={{ left: `${tick.pct}%` }}
-            />
-          ))}
-          <div
-            className="absolute inset-y-0 w-[1.5px] bg-[var(--text-primary)]"
-            style={{ left: `${clock.todayPct}%` }}
-            title={`Today · ${fmtDateShort(today)}`}
-          />
+      {/* Names live in a fixed gutter rather than floating beside their marks.
+          Free-floating labels collided with each other, with the gridlines and
+          with the today rule the moment two dates fell close together — and a
+          label that has to dodge is a label that has to be hunted for. */}
+      <div className="flex flex-col gap-px">
+        <div className="flex items-end">
+          <div className={LABEL_GUTTER} />
+          <div className="relative h-[15px] flex-1">
+            {clock.ticks.map((tick) => (
+              <span
+                key={tick.label + tick.pct}
+                className="absolute -translate-x-1/2 text-[10.5px] text-[var(--text-muted)]"
+                style={{ left: `${tick.pct}%` }}
+              >
+                {tick.label}
+              </span>
+            ))}
+          </div>
         </div>
 
         {clock.marks.map((mark) => (
-          <ClockRow key={mark.materialId} mark={mark} />
+          <ClockRow key={mark.materialId} mark={mark} ticks={clock.ticks} todayPct={clock.todayPct} />
         ))}
       </div>
 
       <p className="mt-3 text-[11.5px] leading-relaxed text-[var(--text-muted)]">
         Each component sits on the date it has to be ordered by to arrive before production. The
-        leftmost is what runs out of time first.{" "}
-        <span className="text-[var(--text-secondary)]">Shared</span> means another item you have
-        already carried forward needs it too, so it can be ordered whatever you decide here.
+        leftmost runs out of time first; the vertical rule is today.{" "}
+        <span className="text-[var(--text-secondary)]">Waits on this item</span> means nothing else
+        you have carried forward justifies it yet.
       </p>
     </div>
   );
 }
 
-function ClockRow({ mark }: { mark: MaterialClockMark }) {
+const LABEL_GUTTER = "w-[168px] flex-none pr-3";
+
+function ClockRow({
+  mark,
+  ticks,
+  todayPct,
+}: {
+  mark: MaterialClockMark;
+  ticks: { label: string; pct: number }[];
+  todayPct: number;
+}) {
   const tone =
     mark.status === "PLAN_NOW"
       ? "var(--risk-positive)"
@@ -236,41 +236,55 @@ function ClockRow({ mark }: { mark: MaterialClockMark }) {
         ? "var(--risk-warning)"
         : "var(--state-unknown)";
 
-  // Labels flip to the left of the mark once it sits past the midpoint, so a
-  // late date never renders its text off the edge of the chart.
-  const flip = mark.datePct > 55;
-
   return (
-    <div className="relative h-[30px]">
-      {/* The label keeps its reading order whichever side of the mark it sits
-          on — flipping the flex direction as well would print the date before
-          the component name and read backwards. */}
-      <div
-        className="absolute top-1/2 z-10 flex -translate-y-1/2 items-baseline gap-1.5"
-        style={
-          flip
-            ? { right: `calc(${100 - mark.datePct}% + 10px)` }
-            : { left: `calc(${mark.datePct}% + 10px)` }
-        }
-      >
-        <span className="whitespace-nowrap text-[11.5px] font-medium text-[var(--text-primary)]">
+    <div className="group flex items-stretch rounded-[var(--radius-sm)] py-[3px] transition-colors hover:bg-[var(--interaction-hover)]">
+      <div className={cn(LABEL_GUTTER, "flex flex-col justify-center text-right")}>
+        <span className="truncate text-[11.5px] font-medium leading-tight text-[var(--text-primary)]">
           {mark.materialName}
         </span>
-        <span className="whitespace-nowrap text-[11px] tabular-nums text-[var(--text-muted)]">
-          {fmtDateShort(mark.decisionDate)} · {fmtNum(Math.round(mark.requirement))} {mark.uom} ·{" "}
-          {mark.leadTimeDays}d lead
-          {mark.standsWithoutThisItem ? "" : " · waits on this item"}
+        <span className="truncate text-[10.5px] leading-tight text-[var(--text-muted)]">
+          {fmtNum(Math.round(mark.requirement))} {mark.uom} · {mark.leadTimeDays}d
         </span>
       </div>
 
-      <div
-        className={cn(
-          "absolute top-1/2 h-[15px] w-[3px] -translate-y-1/2 rounded-full",
-          mark.isBinding && "h-[21px] w-[4px]"
-        )}
-        style={{ left: `${mark.datePct}%`, background: tone }}
-        title={`${mark.materialName} — order by ${fmtDateShort(mark.decisionDate)}`}
-      />
+      <div className="relative h-[30px] flex-1">
+        {ticks.map((tick) => (
+          <div
+            key={tick.label + tick.pct}
+            className="pointer-events-none absolute inset-y-0 w-px bg-[var(--chart-gridline-color)]"
+            style={{ left: `${tick.pct}%` }}
+          />
+        ))}
+        <div
+          className="pointer-events-none absolute inset-y-0 w-[1.5px] bg-[var(--text-primary)] opacity-70"
+          style={{ left: `${todayPct}%` }}
+        />
+
+        <div
+          className={cn(
+            "absolute top-1/2 h-[16px] w-[4px] -translate-y-1/2 rounded-full",
+            mark.isBinding && "h-[24px] w-[5px]"
+          )}
+          style={{ left: `${mark.datePct}%`, background: tone }}
+        />
+
+        {/* The date reads from the mark outward, flipping side only when it
+            would otherwise run off the right edge. */}
+        <span
+          className={cn(
+            "absolute top-1/2 -translate-y-1/2 whitespace-nowrap text-[10.5px] tabular-nums",
+            mark.overdue ? "font-medium text-[var(--risk-critical)]" : "text-[var(--text-secondary)]"
+          )}
+          style={
+            mark.datePct > 72
+              ? { right: `calc(${100 - mark.datePct}% + 9px)` }
+              : { left: `calc(${mark.datePct}% + 9px)` }
+          }
+        >
+          {fmtDateShort(mark.decisionDate)}
+          {mark.standsWithoutThisItem ? "" : " · waits on this item"}
+        </span>
+      </div>
     </div>
   );
 }

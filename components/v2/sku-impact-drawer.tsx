@@ -81,7 +81,7 @@ function Body({
             <div
               className={cn(
                 "mt-1 text-[30px] font-semibold leading-none tracking-tight tabular-nums",
-                impact.bearsLoad ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]"
+                impact.bearsLoad ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"
               )}
             >
               {fmtUnits(candidate.plannedUnits)}
@@ -112,7 +112,7 @@ function Body({
         </div>
 
         {!impact.bearsLoad ? (
-          <p className="mt-3 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-sunken)] px-3 py-2 text-[12.5px] text-[var(--text-muted)]">
+          <p className="mt-3 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--chart-track)] px-3 py-2 text-[12.5px] text-[var(--text-muted)]">
             Only <span className="font-medium text-[var(--text-secondary)]">carry forward</span> adds
             load. Everything below is what this item <em>would</em> require if it did.
           </p>
@@ -273,7 +273,7 @@ function Bar({
       <span className="w-[112px] flex-none truncate text-[11.5px] text-[var(--text-muted)]">
         {label}
       </span>
-      <div className="h-[18px] flex-1 rounded-[2px] bg-[var(--surface-sunken)]">
+      <div className="h-[18px] flex-1 rounded-[2px] bg-[var(--chart-track)]">
         <div
           className="h-full rounded-[2px] transition-[width]"
           style={{
@@ -373,10 +373,11 @@ function Chip({ children, tone }: { children: string; tone: "same" | "different"
   );
 }
 
+/** See the note on `SectionRule` — a heading should sit with its content. */
 function SectionTitle({ children, aside }: { children: React.ReactNode; aside?: string }) {
   return (
-    <div className="mb-2.5 flex items-baseline justify-between gap-3 border-b border-[var(--border)] pb-1.5">
-      <span className="text-[11px] font-medium uppercase tracking-[0.09em] text-[var(--text-muted)]">
+    <div className="mb-2 flex items-baseline justify-between gap-3">
+      <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">
         {children}
       </span>
       {aside ? <span className="text-[11.5px] text-[var(--text-muted)]">{aside}</span> : null}

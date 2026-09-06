@@ -46,13 +46,21 @@ export function PageHeader({
 }
 
 /** A labelled hairline. Replaces a card border as the way to separate sections. */
+/**
+ * A section label.
+ *
+ * The rule that used to run from the label to the edge of the page pushed the
+ * heading away from what it was heading — at a glance the label read as the
+ * end of the section above it rather than the start of the one below. The
+ * separation is now vertical space alone, and the label itself carries enough
+ * contrast to be read rather than merely noticed.
+ */
 export function SectionRule({ label, action }: { label: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex items-center gap-3 pb-3 pt-8 first:pt-0">
-      <span className="text-[11px] font-medium uppercase tracking-[0.09em] text-[var(--text-muted)]">
+    <div className="flex items-baseline justify-between gap-3 pb-2 pt-7 first:pt-0">
+      <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">
         {label}
       </span>
-      <span className="h-px flex-1 bg-[var(--border)]" />
       {action}
     </div>
   );
