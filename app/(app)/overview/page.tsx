@@ -21,6 +21,7 @@ import { useDataset } from "@/components/dataset/dataset-provider";
 import { StateBadge } from "@/components/v2/state-badge";
 import { Label, Page, PageHeader, SectionRule, NotAvailable } from "@/components/v2/page";
 import { summarizePortfolio, type ExposedLine, type PortfolioSummary } from "@/lib/situations/portfolio";
+import { WelcomePanel } from "@/components/v2/welcome-panel";
 import { formatMonthLabel } from "@/lib/dataset/periods";
 import { cn } from "@/lib/utils/cn";
 import { fmtDateShort, fmtHours, fmtMoney, fmtPct, fmtUnits, fmtWeeks } from "@/lib/utils/format";
@@ -48,6 +49,8 @@ export default function OverviewPage() {
         title="Overview"
         subtitle={`${summary.situationCount} programme${summary.situationCount === 1 ? "" : "s"} in the planning horizon`}
       />
+
+      <WelcomePanel summary={summary} firstSituationId={situations[0]?.id} />
 
       <Headline summary={summary} />
 

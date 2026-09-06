@@ -7,12 +7,15 @@
 
 "use client";
 
-import { RotateCcw } from "lucide-react";
+import { useState } from "react";
+import { ChevronRight, RotateCcw } from "lucide-react";
 import { CollapsibleGroup } from "./collapsible-group";
 import { FieldRow } from "./field-row";
 import { useSituationScenarioStore } from "@/stores/situation-scenario-store";
 import { capacityKey } from "@/lib/situations/scenario";
 import { formatMonthLabel } from "@/lib/dataset/periods";
+import { cn } from "@/lib/utils/cn";
+import { fmtPct } from "@/lib/utils/format";
 import type { PlanningSituation, ScenarioAdjustments } from "@/types/situation";
 
 export function ControlsCapacity({
@@ -68,42 +71,132 @@ export function ControlsCapacity({
             const targetOverride = adjustments.targetUtilization[line.lineId];
 
             return (
-              <div key={line.lineId} className="flex flex-col gap-2">
-                <div className="truncate text-[12.5px] font-medium text-[var(--text-primary)]">{line.lineName}</div>
-                <FieldRow
-                  label="Target utilisation"
-                  display="pct"
-                  baseline={firstCell.targetUtilizationPct}
-                  override={targetOverride}
-                  min={0.3}
-                  max={1.2}
-                  onCommit={(value) => setTargetUtilization(scenarioId, line.lineId, value)}
-                  onClear={() => clearAdjustment(scenarioId, "targetUtilization", line.lineId)}
-                  slider
-                  />
-                <div className="flex flex-col gap-1.5 border-l border-[var(--border)] pl-3">
-                  {cellsForLine.map((cell) => {
-                    const key = capacityKey(line.lineId, cell.period);
-                    return (
-                      <FieldRow
-                        key={cell.period}
-                        label={formatMonthLabel(cell.period)}
-                        display="num"
-                        baseline={cell.availableHours}
-                        override={adjustments.availableHours[key]}
-                        min={0}
-                        max={2000}
-                        onCommit={(value) => setAvailableHours(scenarioId, line.lineId, cell.period, value)}
-                        onClear={() => clearAdjustment(scenarioId, "availableHours", key)}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
+              <LineControls
+                key={line.lineId}
+                lineId={line.lineId}
+                lineName={line.lineName}
+                targetBaseline={firstCell.targetUtilizationPct}
+                targetOverride={targetOverride}
+                cells={cellsForLine}
+                adjustments={adjustments}
+                onTarget={(value) => setTargetUtilization(scenarioId, line.lineId, value)}
+                onClearTarget={() => clearAdjustment(scenarioId, "targetUtilization", line.lineId)}
+                onHours={(period, value) => setAvailableHours(scenarioId, line.lineId, period, value)}
+                onClearHours={(key) => clearAdjustment(scenarioId, "availableHours", key)}
+              />
             );
           })}
         </div>
       )}
     </CollapsibleGroup>
+  );
+}
+
+/**
+ * One line, opened on demand.
+ *
+ * Four lines each showing a target and five months meant twenty-four controls
+ * the moment the group opened — a planner adjusting one line had to scroll
+ * past three others to find it. Closed, a line still says the one thing that
+ * decides whether it is worth opening: what its target currently is, and
+ * whether anything on it has been changed.
+ */
+function LineControls({
+  lineId,
+  lineName,
+  targetBaseline,
+  targetOverride,
+  cells,
+  adjustments,
+  onTarget,
+  onClearTarget,
+  onHours,
+  onClearHours,
+}: {
+  lineId: string;
+  lineName: string;
+  targetBaseline: number;
+  targetOverride: number | undefined;
+  cells: PlanningSituation["capacityExposure"]["cells"];
+  adjustments: ScenarioAdjustments;
+  onTarget: (value: number) => void;
+  onClearTarget: () => void;
+  onHours: (period: string, value: number) => void;
+  onClearHours: (key: string) => void;
+}) {
+  const changedCount =
+    (targetOverride !== undefined ? 1 : 0) +
+    cells.filter((c) => adjustments.availableHours[capacityKey(lineId, c.period)] !== undefined)
+      .length;
+
+  // A line the planner has already touched opens with the group, so their own
+  // changes are never hidden behind a disclosure.
+  const [open, setOpen] = useState(changedCount > 0);
+
+  return (
+    <div className="border-b border-[var(--border)] pb-2 last:border-b-0 last:pb-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-1.5 rounded-[var(--radius-sm)] py-1 text-left transition-colors hover:bg-[var(--interaction-hover)]"
+        style={{ transitionDuration: "var(--duration-fast)" }}
+      >
+        <ChevronRight
+          className={cn("size-3.5 flex-none text-[var(--text-muted)] transition-transform", open && "rotate-90")}
+          style={{ transitionDuration: "var(--duration-fast)" }}
+        />
+        <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-[var(--text-primary)]">
+          {lineName}
+        </span>
+        <span className="flex-none text-[11px] tabular-nums text-[var(--text-muted)]">
+          {changedCount > 0 ? (
+            <span className="font-medium text-[var(--state-scenario)]">
+              {changedCount} changed
+            </span>
+          ) : (
+            `target ${fmtPct(targetOverride ?? targetBaseline)}`
+          )}
+        </span>
+      </button>
+
+      {open ? (
+        <div className="mt-1.5 flex flex-col gap-1.5 pl-5">
+          <FieldRow
+            label="Target utilisation"
+            display="pct"
+            baseline={targetBaseline}
+            override={targetOverride}
+            min={0.3}
+            max={1.2}
+            onCommit={onTarget}
+            onClear={onClearTarget}
+            slider
+          />
+          <div className="flex flex-col border-l border-[var(--border)] pl-3">
+            {cells.map((cell) => {
+              const key = capacityKey(lineId, cell.period);
+              return (
+                <FieldRow
+                  key={cell.period}
+                  label={formatMonthLabel(cell.period)}
+                  display="num"
+                  baseline={cell.availableHours}
+                  override={adjustments.availableHours[key]}
+                  min={0}
+                  max={2000}
+                  onCommit={(value) => onHours(cell.period, value)}
+                  onClear={() => onClearHours(key)}
+                  labelWidth={58}
+                  inputWidth={68}
+                  unit="h"
+                  inlineBaseline
+                />
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }

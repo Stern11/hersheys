@@ -54,6 +54,20 @@ export default function ReconcilePage({ params }: { params: Promise<{ situationI
   if (!situation) return <Page>{null}</Page>;
 
   const { bridge } = situation;
+
+  // Every item on the same basis grows at the same rate, so the header can
+  // state it once. Only omitted when the rows genuinely disagree.
+  const growthRates = new Set(
+    candidates
+      .filter((c) => c.plannedBasis.kind !== "planner_override")
+      .map((c) => c.plannedBasis.growthPct.toFixed(4))
+  );
+  const sharedGrowth =
+    growthRates.size === 1 ? Number([...growthRates][0]) : undefined;
+  const sharedGrowthLabel =
+    sharedGrowth !== undefined && Math.abs(sharedGrowth) >= 0.0005
+      ? `${sharedGrowth > 0 ? "+" : ""}${(sharedGrowth * 100).toFixed(1)}%`
+      : undefined;
   const edited = Object.keys(overrides?.dispositions ?? {}).length;
 
   const columns: Column<CandidateItem>[] = [
@@ -84,24 +98,30 @@ export default function ReconcilePage({ params }: { params: Promise<{ situationI
     },
     {
       key: "planned",
-      header: "Carries forward",
+      // The growth rate is one number for the whole basis, so it belongs in
+      // the header once. Printed on every row it was twenty repetitions of a
+      // fact the reader had already taken in, crowding out the per-row figure
+      // that actually differs.
+      header: (
+        <span>
+          Carries forward
+          {sharedGrowthLabel ? (
+            <span className="ml-1.5 font-normal text-[var(--text-muted)]">{sharedGrowthLabel}</span>
+          ) : null}
+        </span>
+      ),
       numeric: true,
       sortValue: (row) => row.plannedUnits,
       render: (row) => {
-        const moved = row.plannedUnits !== row.actualUnits;
+        const overridden = row.plannedBasis.kind === "planner_override";
         return (
           <div>
             <div className="tabular-nums text-[var(--text-primary)]">
               {fmtUnits(row.plannedUnits)}
             </div>
-            {moved ? (
-              <div className="text-[11.5px] text-[var(--text-muted)]">
-                {row.plannedBasis.kind === "planner_override"
-                  ? "set by hand"
-                  : `${row.plannedBasis.growthPct >= 0 ? "+" : ""}${(
-                      row.plannedBasis.growthPct * 100
-                    ).toFixed(1)}%`}
-              </div>
+            {/* Only what departs from the shared basis earns a second line. */}
+            {overridden ? (
+              <div className="text-[11.5px] text-[var(--state-scenario)]">set by hand</div>
             ) : null}
           </div>
         );
@@ -114,13 +134,13 @@ export default function ReconcilePage({ params }: { params: Promise<{ situationI
       render: (row) => {
         const cover = coverageOf(row);
         if (!cover) {
+          // Deliberately terse. The long version repeated verbatim down every
+          // uncovered row, and its second line restated the brand, family and
+          // customer already sitting in the first column — two kinds of
+          // repetition on one screen, neither of them telling the reader
+          // anything they had not just read.
           return (
-            <div className="min-w-0">
-              <div className="truncate text-[12.5px] text-[var(--text-primary)]">Nothing in the plan covers this</div>
-              <div className="truncate text-[11.5px] text-[var(--text-muted)]">
-                {[row.brand, row.productFamily, row.customer].filter(Boolean).join(" · ")}
-              </div>
-            </div>
+            <span className="text-[12.5px] text-[var(--risk-warning)]">Not covered</span>
           );
         }
         return (

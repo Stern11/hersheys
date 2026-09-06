@@ -9,6 +9,14 @@ export type Theme = "light" | "dark";
 export const THEME_STORAGE_KEY = "heizen.theme";
 /** sessionStorage key for planner triage + panel state. */
 export const APP_STORAGE_KEY = "heizen.app";
+/**
+ * localStorage key for the sidebar width preference.
+ *
+ * localStorage, not the session slice: a planner who collapses the navigation
+ * to get more table on screen means it, and having it spring back open in the
+ * next tab is the kind of small betrayal that makes a tool feel unowned.
+ */
+export const SIDEBAR_STORAGE_KEY = "heizen.sidebar";
 
 interface AppStoreState {
   theme: Theme;
@@ -22,6 +30,9 @@ interface AppStoreState {
 
   aiPanelOpen: boolean;
   setAiPanelOpen: (open: boolean) => void;
+
+  sidebarCollapsed: boolean;
+  toggleSidebar: () => void;
 
   transcript: AITranscriptEntry[];
   appendTranscriptEntry: (entry: AITranscriptEntry) => void;
@@ -63,6 +74,10 @@ export function readStoredTheme(): Theme | null {
   return raw === "dark" || raw === "light" ? raw : null;
 }
 
+export function readStoredSidebar(): boolean {
+  return readRaw("local", SIDEBAR_STORAGE_KEY) === "collapsed";
+}
+
 export const useAppStore = create<AppStoreState>()(
   persist(
     (set, get) => ({
@@ -84,6 +99,11 @@ export const useAppStore = create<AppStoreState>()(
         applyThemeClass(theme);
       },
       initTheme: () => {
+        // Layout preferences ride along with the theme's post-hydration pass,
+        // which is the one place it is safe to read storage without breaking
+        // the server/client render match.
+        set({ sidebarCollapsed: readStoredSidebar() });
+
         const stored = readStoredTheme();
         if (stored) {
           set({ theme: stored });
@@ -98,6 +118,16 @@ export const useAppStore = create<AppStoreState>()(
         set({ theme });
         applyThemeClass(theme);
       },
+
+      // Identical on the server and the client's first render; the stored
+      // preference is applied after hydration, like the theme.
+      sidebarCollapsed: false,
+      toggleSidebar: () =>
+        set((state) => {
+          const next = !state.sidebarCollapsed;
+          writeRaw("local", SIDEBAR_STORAGE_KEY, next ? "collapsed" : "expanded");
+          return { sidebarCollapsed: next };
+        }),
 
       aiPanelOpen: false,
       setAiPanelOpen: (open) => set({ aiPanelOpen: open }),

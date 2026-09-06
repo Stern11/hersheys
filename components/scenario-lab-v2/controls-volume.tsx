@@ -60,6 +60,21 @@ export function ControlsVolume({
   const hiddenCount = focused ? carrying.length - 1 : 0;
   const notCarrying = baseline.candidateItems.length - carrying.length;
 
+  // One rate for the whole basis when the rows agree, which they do unless a
+  // planner has overridden one by hand.
+  const rates = new Set(
+    items
+      .filter((c) => c.plannedBasis.kind !== "planner_override")
+      .map((c) => c.plannedBasis.growthPct.toFixed(4))
+  );
+  const shared = rates.size === 1 ? Number([...rates][0]) : undefined;
+  const basisLabel =
+    shared === undefined
+      ? undefined
+      : Math.abs(shared) < 0.0005
+        ? "Carrying last season's volume forward with no growth applied."
+        : `Carrying last season's volume forward at ${shared > 0 ? "+" : ""}${(shared * 100).toFixed(1)}%.`;
+
   return (
     <CollapsibleGroup
       title="Carry-forward volume"
@@ -84,6 +99,9 @@ export function ControlsVolume({
         </p>
       ) : (
         <div className="flex flex-col">
+          {basisLabel ? (
+            <p className="mb-2 text-[11.5px] leading-snug text-[var(--text-muted)]">{basisLabel}</p>
+          ) : null}
           {items.map((item) => (
             <VolumeRow
               key={item.id}
@@ -162,11 +180,11 @@ function VolumeRow({
         inputWidth={96}
       />
 
+      {/* The growth rate is the same for every row on one basis, so it is
+          stated once above the list rather than on each. What differs per row
+          is what the product actually sold. */}
       <div className="mt-1 text-[11px] tabular-nums text-[var(--text-secondary)]">
         Sold {fmtUnits(item.actualUnits)}
-        {item.plannedBasis.growthPct !== 0
-          ? ` · basis ${item.plannedBasis.growthPct > 0 ? "+" : ""}${(item.plannedBasis.growthPct * 100).toFixed(1)}%`
-          : " · no growth applied"}
       </div>
     </div>
   );

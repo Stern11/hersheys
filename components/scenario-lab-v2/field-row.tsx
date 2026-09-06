@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
+import { cn } from "@/lib/utils/cn";
 import { fmtUnits } from "@/lib/utils/format";
 
 export type FieldDisplay = "pct" | "num" | "units";
@@ -58,6 +59,8 @@ export function FieldRow({
   labelWidth = 104,
   inputWidth = 68,
   slider = false,
+  inlineBaseline = false,
+  unit,
 }: {
   label: string;
   baseline: number;
@@ -74,6 +77,18 @@ export function FieldRow({
   inputWidth?: number;
   /** Adds a slider beside the field. Requires both `min` and `max`. */
   slider?: boolean;
+  /**
+   * Puts the baseline on the same row instead of below it. Halves the height
+   * of a long list; opt-in rather than a width heuristic, because it only
+   * fits where the label is short.
+   */
+  inlineBaseline?: boolean;
+  /**
+   * Unit suffix for a plain number — "h", "/h". Percentages and unit counts
+   * carry their own, so this is only for `display="num"`, where a bare 488
+   * says nothing about what it counts.
+   */
+  unit?: string;
 }) {
   const effective = override ?? baseline;
   const isOverridden = override !== undefined;
@@ -109,8 +124,29 @@ export function FieldRow({
   const sliderRange =
     slider && min !== undefined && max !== undefined ? { min, max } : undefined;
 
+  // A bare 488 says nothing about what it counts, so a plain number carries
+  // its unit. Percentages and unit counts already carry their own.
+  const suffix = display === "num" && unit ? unit : "";
+  const show = (value: number) => `${formatValue(value, display)}${suffix}`;
+
+  const summary = isOverridden ? (
+    <>
+      Baseline {show(baseline)} → {show(effective)}{" "}
+      <span className="font-medium text-[var(--state-scenario)]">
+        {formatSigned(effective - baseline, display)}
+      </span>
+    </>
+  ) : (
+    <>Baseline {show(baseline)}</>
+  );
+
+  // Inline halves the height of a long list, but a slider already eats the
+  // row and an override needs room for "x → y  Δ" without truncating into
+  // "Baseline 78 · Scen…".
+  const inline = inlineBaseline && !sliderRange && !isOverridden;
+
   return (
-    <div className="flex flex-col gap-1">
+    <div className={cn("flex flex-col", !inline && "gap-1")}>
       <div className="flex items-center gap-2">
         {labelWidth > 0 ? (
           <span
@@ -145,6 +181,15 @@ export function FieldRow({
           className="h-7 flex-none text-right"
           style={{ width: inputWidth }}
         />
+        {suffix ? (
+          <span className="flex-none text-[11px] text-[var(--text-muted)]">{suffix}</span>
+        ) : null}
+
+        {inline ? (
+          <span className="min-w-0 flex-1 truncate text-right text-[11px] tabular-nums text-[var(--text-muted)]">
+            {summary}
+          </span>
+        ) : null}
 
         {/* A 12px glyph is not a hit area. The button is padded to something a
             planner can actually land on, and only appears once there is an
@@ -165,22 +210,14 @@ export function FieldRow({
         )}
       </div>
 
-      {/* On its own line so it can never be truncated into "Baseline 78 · Scen…" */}
-      <div
-        className="text-[11px] tabular-nums text-[var(--text-muted)]"
-        style={{ paddingLeft: labelWidth > 0 ? labelWidth + 8 : 0 }}
-      >
-        {isOverridden ? (
-          <>
-            Baseline {formatValue(baseline, display)} → {formatValue(effective, display)}{" "}
-            <span className="font-medium text-[var(--state-scenario)]">
-              {formatSigned(effective - baseline, display)}
-            </span>
-          </>
-        ) : (
-          `Baseline ${formatValue(baseline, display)}`
-        )}
-      </div>
+      {!inline ? (
+        <div
+          className="text-[11px] tabular-nums text-[var(--text-muted)]"
+          style={{ paddingLeft: labelWidth > 0 ? labelWidth + 8 : 0 }}
+        >
+          {summary}
+        </div>
+      ) : null}
     </div>
   );
 }

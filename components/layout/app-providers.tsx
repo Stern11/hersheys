@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { SessionProvider } from "next-auth/react";
+import { useSessionStore } from "@/stores/session-store";
 import { useAppStore, THEME_STORAGE_KEY } from "@/stores/app-store";
 import { useScenarioStore } from "@/stores/scenario-store";
 import { useDatasetStore } from "@/stores/dataset-store";
@@ -39,6 +41,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     // back to the first-run screen.
     void useDatasetStore.persist.rehydrate();
     void useSituationScenarioStore.persist.rehydrate();
+    void useSessionStore.persist.rehydrate();
     // Theme lives in localStorage rather than the session slice (it is a
     // durable preference), so it is restored separately and re-applied to the
     // store so the toggle's icon matches what is actually on screen.
@@ -46,11 +49,15 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   }, [initTheme]);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
-      <TooltipProvider>
-        <DatasetProvider>{children}</DatasetProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
+    // `SessionProvider` outermost: it is the only thing here that can be
+    // waiting on the network, and everything below reads identity through it.
+    <SessionProvider>
+      <QueryClientProvider client={queryClient}>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+        <TooltipProvider>
+          <DatasetProvider>{children}</DatasetProvider>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </SessionProvider>
   );
 }

@@ -8,9 +8,12 @@
 "use client";
 
 import { useMemo } from "react";
-import { RotateCcw } from "lucide-react";
+import { useState } from "react";
+import { ChevronRight, RotateCcw } from "lucide-react";
 import { CollapsibleGroup } from "./collapsible-group";
 import { FieldRow } from "./field-row";
+import { cn } from "@/lib/utils/cn";
+import { fmtPct } from "@/lib/utils/format";
 import { useSituationScenarioStore } from "@/stores/situation-scenario-store";
 import { mappingKey } from "@/lib/situations/scenario";
 import type { PlanningDataset, ItemLineMappingRow } from "@/types/dataset";
@@ -72,41 +75,128 @@ export function ControlsAllocation({
       {mappings.length === 0 ? (
         <p className="text-[12px] text-[var(--text-muted)]">No line mappings apply to this situation.</p>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col">
           {mappings.map((mapping) => {
             const key = mappingKey(mapping.itemOrFamilyId, mapping.lineId);
             return (
-              <div key={mapping.id} className="flex flex-col gap-2">
-                <div className="truncate text-[12.5px] font-medium text-[var(--text-primary)]">
-                  {mapping.itemOrFamilyId}
-                  <span className="ml-1.5 font-normal text-[var(--text-muted)]">on {mapping.lineId}</span>
-                </div>
-                <FieldRow
-                  label="Allocation"
-                  display="pct"
-                  baseline={mapping.allocationPct ?? 1}
-                  override={adjustments.allocation[key]}
-                  min={0}
-                  max={1}
-                  onCommit={(value) => setAllocation(scenarioId, mapping.itemOrFamilyId, mapping.lineId, value)}
-                  onClear={() => clearAdjustment(scenarioId, "allocation", key)}
-                  slider
-                  />
-                <FieldRow
-                  label="Run rate /h"
-                  display="num"
-                  baseline={mapping.runRateUnitsPerHour}
-                  override={adjustments.runRate[key]}
-                  min={1}
-                  max={500_000}
-                  onCommit={(value) => setRunRate(scenarioId, mapping.itemOrFamilyId, mapping.lineId, value)}
-                  onClear={() => clearAdjustment(scenarioId, "runRate", key)}
-                />
-              </div>
+              <MappingControls
+                key={mapping.id}
+                itemOrFamilyId={mapping.itemOrFamilyId}
+                lineId={mapping.lineId}
+                allocationBaseline={mapping.allocationPct ?? 1}
+                allocationOverride={adjustments.allocation[key]}
+                runRateBaseline={mapping.runRateUnitsPerHour}
+                runRateOverride={adjustments.runRate[key]}
+                onAllocation={(value) =>
+                  setAllocation(scenarioId, mapping.itemOrFamilyId, mapping.lineId, value)
+                }
+                onClearAllocation={() => clearAdjustment(scenarioId, "allocation", key)}
+                onRunRate={(value) =>
+                  setRunRate(scenarioId, mapping.itemOrFamilyId, mapping.lineId, value)
+                }
+                onClearRunRate={() => clearAdjustment(scenarioId, "runRate", key)}
+              />
             );
           })}
         </div>
       )}
     </CollapsibleGroup>
+  );
+}
+
+/**
+ * One product-to-line mapping, opened on demand.
+ *
+ * Same reasoning as the capacity lines: a dozen mappings each showing an
+ * allocation slider and a run rate is a wall of controls to scroll past to
+ * reach the one being changed. Closed, the row still says the thing that
+ * decides whether it is worth opening — what share of this product runs here.
+ */
+function MappingControls({
+  itemOrFamilyId,
+  lineId,
+  allocationBaseline,
+  allocationOverride,
+  runRateBaseline,
+  runRateOverride,
+  onAllocation,
+  onClearAllocation,
+  onRunRate,
+  onClearRunRate,
+}: {
+  itemOrFamilyId: string;
+  lineId: string;
+  allocationBaseline: number;
+  allocationOverride: number | undefined;
+  runRateBaseline: number;
+  runRateOverride: number | undefined;
+  onAllocation: (value: number) => void;
+  onClearAllocation: () => void;
+  onRunRate: (value: number) => void;
+  onClearRunRate: () => void;
+}) {
+  const changedCount =
+    (allocationOverride !== undefined ? 1 : 0) + (runRateOverride !== undefined ? 1 : 0);
+  const [open, setOpen] = useState(changedCount > 0);
+
+  return (
+    <div className="border-b border-[var(--border)] pb-2 last:border-b-0 last:pb-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-1.5 rounded-[var(--radius-sm)] py-1 text-left transition-colors hover:bg-[var(--interaction-hover)]"
+        style={{ transitionDuration: "var(--duration-fast)" }}
+      >
+        <ChevronRight
+          className={cn(
+            "size-3.5 flex-none text-[var(--text-muted)] transition-transform",
+            open && "rotate-90"
+          )}
+          style={{ transitionDuration: "var(--duration-fast)" }}
+        />
+        <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-[var(--text-primary)]">
+          {itemOrFamilyId}
+          <span className="ml-1.5 font-normal text-[var(--text-muted)]">on {lineId}</span>
+        </span>
+        <span className="flex-none text-[11px] tabular-nums text-[var(--text-muted)]">
+          {changedCount > 0 ? (
+            <span className="font-medium text-[var(--state-scenario)]">{changedCount} changed</span>
+          ) : (
+            fmtPct(allocationOverride ?? allocationBaseline)
+          )}
+        </span>
+      </button>
+
+      {open ? (
+        <div className="mt-1.5 flex flex-col gap-1.5 pl-5">
+          <FieldRow
+            label="Allocation"
+            display="pct"
+            baseline={allocationBaseline}
+            override={allocationOverride}
+            min={0}
+            max={1}
+            onCommit={onAllocation}
+            onClear={onClearAllocation}
+            slider
+          />
+          <FieldRow
+            label="Run rate"
+            display="num"
+            baseline={runRateBaseline}
+            override={runRateOverride}
+            min={1}
+            max={500_000}
+            unit="/h"
+            onCommit={onRunRate}
+            onClear={onClearRunRate}
+            labelWidth={72}
+            inputWidth={84}
+            inlineBaseline
+          />
+        </div>
+      ) : null}
+    </div>
   );
 }
