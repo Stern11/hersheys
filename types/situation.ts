@@ -141,6 +141,58 @@ export interface PlannedVolumeBasis {
   label: string;
 }
 
+/* ------------------------------------------------------------------ */
+/* Analogous derivation                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A comparable product a not-yet-specified item's components were read from
+ * (V2 §17). Explained by naming attributes, never by a bare percentage.
+ */
+export interface AnalogueMatch {
+  /** The analogue's own historical row id. */
+  candidateId: string;
+  itemId: string;
+  itemName: string;
+  period: PeriodKey;
+  /** Weighted share of comparable attributes that agreed, 0-1. */
+  similarity: number;
+  same: string[];
+  different: string[];
+  componentCount: number;
+  /** The planner has taken this analogue out of the blend. */
+  excluded: boolean;
+  /** How much this analogue counts. Defaults to its similarity. */
+  weight: number;
+}
+
+/** One component read from analogues rather than from the item's own BOM. */
+export interface InferredBomLine {
+  componentId: string;
+  componentName: string;
+  componentType: string;
+  componentFamily?: string;
+  uom: string;
+  /** Weighted mean across the analogues that carry it. */
+  quantityPerParent: number;
+  scrapPct: number;
+  planningStatus?: string;
+  /** Share of analogue weight carrying this component at all, 0-1. */
+  confidence: number;
+  sources: { itemName: string; quantityPerParent: number }[];
+}
+
+/**
+ * Where a candidate's components come from.
+ *
+ * `own_bom` is a specified product: its bill of materials exists and the
+ * numbers are as firm as the volume driving them. `analogue` is a product real
+ * enough to plan but not specified enough to explode — the components are read
+ * from comparable products and must never be presented with the same firmness.
+ * `none` is neither, and says so rather than showing an empty list.
+ */
+export type CandidateDerivation = "own_bom" | "analogue" | "none";
+
 /** A prior-season item offered as an explanation for the unresolved amount. */
 export interface CandidateItem {
   /** Stable id: the historical row id. */
@@ -164,6 +216,12 @@ export interface CandidateItem {
   plannedBasis: PlannedVolumeBasis;
   /** This SKU's actuals across every season in the basis, oldest first. */
   seasonHistory: SeasonPoint[];
+  /** Whether the components come from this item's own BOM or from analogues. */
+  derivation: CandidateDerivation;
+  /** The comparable products used, when `derivation` is `analogue`. */
+  analogues: AnalogueMatch[];
+  /** One line saying where the components came from. */
+  derivationLabel: string;
   disposition: ContributorDisposition;
   /** Set when the disposition came from matching rather than the planner. */
   proposedDisposition: ContributorDisposition;
@@ -299,6 +357,12 @@ export interface MaterialExposureRow {
   sourcing: "shared" | "item_specific";
   /** Set when `sourcing` is item_specific and that one item is not settled. */
   blockedByItemName?: string;
+  /**
+   * True when any part of this requirement was read from analogues rather than
+   * from a real bill of materials. A range built partly on inference must not
+   * read as firmly as one built on a specification.
+   */
+  hasInferredSource: boolean;
 }
 
 /** One SKU's share of a component's requirement. */
@@ -310,6 +374,10 @@ export interface MaterialContributor {
   requirement: number;
   /** False when the planner has not settled this item's disposition. */
   settled: boolean;
+  /** Whether this item's share was read from its own BOM or from analogues. */
+  derivation: CandidateDerivation;
+  /** For an analogue-derived share, how well evidenced the component is, 0-1. */
+  inferredConfidence?: number;
 }
 
 export interface MaterialExposure {
@@ -439,6 +507,24 @@ export interface VolumeCommitment {
   note?: string;
 }
 
+/**
+ * A component the planner has released for ordering.
+ *
+ * The action Decide exists for. It does not place an order — nothing here
+ * writes to a purchasing system — it records that the planner has taken the
+ * decision, so the date stops counting down and the commitment is auditable.
+ */
+export interface MaterialRelease {
+  materialId: string;
+  materialName: string;
+  /** Requirement at the moment of releasing, so the record stands alone. */
+  quantity: number;
+  uom: string;
+  decisionDate: string;
+  releasedAt: string;
+  note?: string;
+}
+
 /** Planner decisions that live outside the dataset and drive recomputation. */
 export interface SituationOverrides {
   /** candidateItem.id -> disposition the planner chose. */
@@ -452,6 +538,8 @@ export interface SituationOverrides {
   seasonBasis?: PeriodKey[];
   /** Volumes committed out of Scenario Lab, keyed by candidate id. */
   commitments?: Record<string, VolumeCommitment>;
+  /** Components released for ordering, keyed by material id. */
+  releases?: Record<string, MaterialRelease>;
 }
 
 export const EMPTY_SITUATION_OVERRIDES: SituationOverrides = { dispositions: {} };
@@ -490,6 +578,13 @@ export interface ScenarioAdjustments {
    * carry 130 rather than the 108 the growth basis implies?"
    */
   volumeUnits: Record<string, number>;
+  /**
+   * `${candidateId}::${analogueCandidateId}` -> weight, 0-1.
+   *
+   * Zero excludes the analogue. Lets a planner say "that tin is not comparable
+   * to this one" and see the inferred bill of materials re-blend (V2 §17.3).
+   */
+  analogueWeights: Record<string, number>;
 }
 
 export const EMPTY_ADJUSTMENTS: ScenarioAdjustments = {
@@ -499,6 +594,7 @@ export const EMPTY_ADJUSTMENTS: ScenarioAdjustments = {
   allocation: {},
   leadTimeDays: {},
   volumeUnits: {},
+  analogueWeights: {},
 };
 
 export type ScenarioAdjustmentCategory = keyof ScenarioAdjustments;

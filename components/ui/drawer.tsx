@@ -23,10 +23,13 @@ function DrawerContent({
   children,
   title,
   description,
+  eyebrow,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   title: React.ReactNode;
   description?: React.ReactNode;
+  /** A short status word above the name, when there is one worth leading with. */
+  eyebrow?: React.ReactNode;
 }) {
   return (
     <DialogPrimitive.Portal>
@@ -51,7 +54,14 @@ function DrawerContent({
       >
         <div className="flex flex-none items-start justify-between gap-4 border-b border-[var(--border)] px-6 py-4">
           <div className="min-w-0">
-            <DialogPrimitive.Title className="truncate text-[15px] font-semibold tracking-tight">
+            {eyebrow ? (
+              <div className="mb-1 text-[10.5px] font-semibold uppercase tracking-[0.09em] text-[var(--state-inferred)]">
+                {eyebrow}
+              </div>
+            ) : null}
+            {/* The product name is what a planner is looking for first, so it
+                is sized to be found rather than merely present. */}
+            <DialogPrimitive.Title className="truncate text-[19px] font-semibold tracking-[-0.01em]">
               {title}
             </DialogPrimitive.Title>
             {description ? (

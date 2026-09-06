@@ -25,6 +25,11 @@ export function mappingKey(itemOrFamilyId: string, lineId: string): string {
   return `${itemOrFamilyId}::${lineId}`;
 }
 
+/** Keys one analogue's weight within one candidate's blend. */
+export function analogueKey(candidateId: string, analogueId: string): string {
+  return `${candidateId}::${analogueId}`;
+}
+
 /** Guards against a typo turning into a nonsensical plan. */
 const LIMITS = {
   availableHours: { min: 0, max: 2000 },
@@ -33,6 +38,7 @@ const LIMITS = {
   allocation: { min: 0, max: 1 },
   leadTimeDays: { min: 0, max: 730 },
   volumeUnits: { min: 0, max: 1_000_000_000 },
+  analogueWeights: { min: 0, max: 1 },
 };
 
 export function clamp(value: number, range: { min: number; max: number }): number {

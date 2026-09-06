@@ -139,10 +139,10 @@ const FORMULA_FAMILY: Record<Family, string> = {
 };
 
 const FLAVORS: Record<Family, readonly string[]> = {
-  "Variety Bags": ["milk chocolate", "caramel swirl", "peanut butter cup minis", "dark chocolate"],
-  "Gift Tins": ["assorted minis", "toffee crunch", "peppermint bark", "cherry cordial"],
-  "Counter Displays": ["assorted singles", "milk chocolate singles", "caramel singles"],
-  "Molded Novelty": ["pumpkin shape", "heart shape", "holiday tree shape", "bell shape"],
+  "Variety Bags": ["milk chocolate", "caramel swirl", "peanut butter cup", "dark chocolate"],
+  "Gift Tins": ["hazelnut truffle", "toffee crunch", "peppermint bark", "cherry cordial"],
+  "Counter Displays": ["milk chocolate", "caramel", "almond"],
+  "Molded Novelty": ["milk chocolate", "white chocolate", "dark chocolate", "cookies and cream"],
 };
 
 const PACK_SIZES: Record<Family, readonly { size: number; uom: string }[]> = {
@@ -477,15 +477,28 @@ function pickFlavor(rng: Rng, family: Family): string {
  * hardest to scan. Brand, family and customer stay in their own columns rather
  * than being folded into the name.
  */
-function itemName(brand: string, family: Family, pack: { size: number; uom: string }): string {
-  return `${brand} ${FORMAT_NOUN[family]} ${pack.size}${pack.uom}`;
+function itemName(
+  brand: string,
+  family: Family,
+  pack: { size: number; uom: string },
+  flavor: string
+): string {
+  // Named the way a confectionery planner would say it out loud: what it is
+  // made of, then what it comes in. "Copperleaf Counter Display 36ct" told a
+  // reader the pack and nothing about the product — twenty rows of it read as
+  // twenty format codes rather than twenty things you could picture.
+  return `${brand} ${titleCase(flavor)} ${FORMAT_NOUN[family]} ${pack.size}${pack.uom}`;
+}
+
+function titleCase(value: string): string {
+  return value.replace(/\b[a-z]/g, (c) => c.toUpperCase());
 }
 
 /** The singular noun a planner uses for each family. */
 const FORMAT_NOUN: Record<Family, string> = {
-  "Variety Bags": "Variety Bag",
+  "Variety Bags": "Minis Bag",
   "Gift Tins": "Gift Tin",
-  "Counter Displays": "Counter Display",
+  "Counter Displays": "Bar Display",
   "Molded Novelty": "Molded Novelty",
 };
 function otherFamilies(exclude: Family): Family[] {
@@ -668,7 +681,7 @@ function buildHistoricalRow(args: {
   return {
     historical_period: args.historicalPeriod,
     item_id: args.itemId,
-    item_name: itemName(args.brand, family, packSize),
+    item_name: itemName(args.brand, family, packSize, args.flavor),
     brand: args.brand,
     product_family: family,
     actual_units: Math.max(0, Math.round(args.actualUnits)),
@@ -731,10 +744,13 @@ function generateProgram(rng: Rng, program: Program): ProgramOutput {
         itemSeq++;
         const primaryLine = FAMILY_LINE_ALLOC[seg.family][0]?.lineId ?? "LINE-01";
         const packSize = pickPackSize(rng, seg.family);
+        // Its own stream, so naming the current-plan items does not shift
+        // every random draw that follows and rewrite the seeded dataset.
+        const currentFlavor = pickFlavor(new Rng(`flavor::${currentItemId}`), seg.family);
         currentPlanRows.push({
           planning_period: program.planningPeriod,
           item_id: currentItemId,
-          item_name: itemName(seg.brand, seg.family, packSize),
+          item_name: itemName(seg.brand, seg.family, packSize, currentFlavor),
           brand: seg.brand,
           product_family: seg.family,
           planned_units: plannedUnits,
@@ -840,7 +856,13 @@ function generateProgram(rng: Rng, program: Program): ProgramOutput {
         flavor: pickFlavor(rng, family),
       })
     );
-    bomRows.push(...bomRowsFor(rng, histItemId, family));
+    // The last orphan is deliberately left unspecified: a renovation whose
+    // bill of materials was never set up. Its volume is as real as any other,
+    // but its components can only be read from comparable products — which is
+    // the whole analogous-forecasting case (V2 §17, Golden Scenario B).
+    // Everything downstream must show it as inferred rather than firm.
+    const unspecified = i === orphanFamilies.length - 1;
+    if (!unspecified) bomRows.push(...bomRowsFor(rng, histItemId, family));
     // No 2027 successor — this is exactly the "carry forward" unresolved load
     // the engine's candidate matcher will surface.
   }

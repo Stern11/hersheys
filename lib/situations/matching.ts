@@ -418,6 +418,12 @@ export function buildCandidates(
         seasonHistory: [
           { period: row.historicalPeriod, units: row.actualUnits, value: row.actualValue },
         ],
+        // Matching does not know which items have a bill of materials —
+        // build.ts resolves that once it has the BOM index. `none` is the
+        // honest default: it claims nothing until something is found.
+        derivation: "none",
+        analogues: [],
+        derivationLabel: "",
         disposition: chosen ?? proposed,
         proposedDisposition: proposed,
         match,

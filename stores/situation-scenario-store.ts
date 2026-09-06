@@ -14,7 +14,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import type { ScenarioAdjustmentCategory, ScenarioAdjustments, SituationScenario } from "@/types/situation";
 import { EMPTY_ADJUSTMENTS } from "@/types/situation";
-import { capacityKey, mappingKey } from "@/lib/situations/scenario";
+import { analogueKey, capacityKey, mappingKey } from "@/lib/situations/scenario";
 import { webStorage } from "./persist-storage";
 
 export const SITUATION_SCENARIO_STORAGE_KEY = "heizen.situation-scenarios";
@@ -41,6 +41,12 @@ export interface SituationScenarioState {
   setAllocation: (scenarioId: string, itemOrFamilyId: string, lineId: string, share: number) => void;
   setLeadTime: (scenarioId: string, materialId: string, days: number) => void;
   setVolumeUnits: (scenarioId: string, candidateId: string, units: number) => void;
+  setAnalogueWeight: (
+    scenarioId: string,
+    candidateId: string,
+    analogueId: string,
+    weight: number
+  ) => void;
 
   clearAdjustment: (scenarioId: string, category: ScenarioAdjustmentCategory, key: string) => void;
   resetCategory: (scenarioId: string, category: ScenarioAdjustmentCategory) => void;
@@ -63,6 +69,7 @@ const cloneAdjustments = (a: ScenarioAdjustments): ScenarioAdjustments => ({
   // Spreading a missing map yields {}, which is what makes a scenario saved
   // before this category existed rehydrate cleanly.
   volumeUnits: { ...a.volumeUnits },
+  analogueWeights: { ...a.analogueWeights },
 });
 
 export const useSituationScenarioStore = create<SituationScenarioState>()(
@@ -182,6 +189,8 @@ export const useSituationScenarioStore = create<SituationScenarioState>()(
           patch(scenarioId, "leadTimeDays", materialId, days),
         setVolumeUnits: (scenarioId, candidateId, units) =>
           patch(scenarioId, "volumeUnits", candidateId, units),
+        setAnalogueWeight: (scenarioId, candidateId, analogueId, weight) =>
+          patch(scenarioId, "analogueWeights", analogueKey(candidateId, analogueId), weight),
 
         clearAdjustment: (scenarioId, category, key) => patch(scenarioId, category, key, undefined),
 

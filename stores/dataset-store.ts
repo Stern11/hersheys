@@ -13,6 +13,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import type {
   ContributorDisposition,
   MatchConfig,
+  MaterialRelease,
   SituationOverrides,
   VolumeCommitment,
 } from "@/types/situation";
@@ -56,6 +57,9 @@ export interface DatasetStoreState {
   setSeasonBasis: (situationId: string, periods: string[] | undefined) => void;
   /** Commits a scenario volume as a governed provisional assumption. */
   commitVolume: (situationId: string, commitment: VolumeCommitment) => void;
+  /** Records that a component has been released for ordering. */
+  releaseMaterial: (situationId: string, release: MaterialRelease) => void;
+  undoMaterialRelease: (situationId: string, materialId: string) => void;
   releaseCommitment: (situationId: string, candidateId: string) => void;
 }
 
@@ -171,6 +175,34 @@ export const useDatasetStore = create<DatasetStoreState>()(
             overridesBySituation: {
               ...state.overridesBySituation,
               [situationId]: { ...current, matchConfig: config },
+            },
+          };
+        }),
+
+      releaseMaterial: (situationId, release) =>
+        set((state) => {
+          const current = state.overridesBySituation[situationId] ?? emptyOverrides();
+          return {
+            overridesBySituation: {
+              ...state.overridesBySituation,
+              [situationId]: {
+                ...current,
+                releases: { ...current.releases, [release.materialId]: release },
+              },
+            },
+          };
+        }),
+
+      undoMaterialRelease: (situationId, materialId) =>
+        set((state) => {
+          const current = state.overridesBySituation[situationId];
+          if (!current?.releases) return state;
+          const next = { ...current.releases };
+          delete next[materialId];
+          return {
+            overridesBySituation: {
+              ...state.overridesBySituation,
+              [situationId]: { ...current, releases: next },
             },
           };
         }),

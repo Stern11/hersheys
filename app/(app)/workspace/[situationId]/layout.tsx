@@ -63,8 +63,11 @@ export default function SituationLayout({
 
   return (
     <div>
-      <div className="border-b border-[var(--border)] bg-[var(--surface)]">
-        <div className="mx-auto w-full max-w-[1360px] px-8 pt-5">
+      {/* Sticky so the programme and the step you are on stay visible while
+          you scroll a long list — losing your place in the workflow is the
+          fastest way to stop trusting a number you are looking at. */}
+      <div className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--surface)]">
+        <div className="mx-auto w-full max-w-[1360px] px-8 pt-4">
           <Link
             href="/workspace"
             className="mb-3 inline-flex items-center gap-1.5 text-[12px] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
@@ -98,7 +101,7 @@ export default function SituationLayout({
             </Link>
           </div>
 
-          <nav className="mt-5 flex gap-1">
+          <nav className="mt-4 flex gap-1">
             {STEPS.map((step, index) => {
               const active = index === activeIndex;
               return (

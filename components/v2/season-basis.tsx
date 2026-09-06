@@ -91,7 +91,38 @@ export function SeasonBasis({
         })}
       </div>
 
-      <span className="text-[12.5px] text-[var(--text-secondary)]">{situation.seasonBasisLabel}</span>
+      <SeasonConclusion label={situation.seasonBasisLabel} />
     </div>
+  );
+}
+
+/**
+ * The growth rate the selected seasons imply.
+ *
+ * Pulled out of the sentence and given weight, because it is the one number in
+ * this control a planner will argue with — and a figure that drives every
+ * carry-forward volume on the page should not read as a footnote.
+ */
+function SeasonConclusion({ label }: { label: string }) {
+  const match = /([+\-−]?\d+(?:\.\d+)?%)/.exec(label);
+  if (!match?.[1]) {
+    return <span className="text-[12.5px] text-[var(--text-secondary)]">{label}</span>;
+  }
+  const [before, after] = label.split(match[1]);
+  const positive = !match[1].startsWith("-") && !match[1].startsWith("\u2212");
+
+  return (
+    <span className="text-[12.5px] text-[var(--text-secondary)]">
+      {before}
+      <span
+        className={cn(
+          "text-[14px] font-semibold tabular-nums",
+          positive ? "text-[var(--risk-positive)]" : "text-[var(--risk-critical)]"
+        )}
+      >
+        {match[1]}
+      </span>
+      {after}
+    </span>
   );
 }

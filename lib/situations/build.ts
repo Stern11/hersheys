@@ -25,6 +25,7 @@ import type {
   CandidateItem,
   CapacityCell,
   CapacityContributor,
+  InferredBomLine,
   MaterialContributor,
   CapacityExposure,
   DecisionRunway,
@@ -41,6 +42,7 @@ import type {
 } from "@/types/situation";
 import { EMPTY_SITUATION_OVERRIDES, LOAD_BEARING_DISPOSITIONS } from "@/types/situation";
 import { buildCandidates, DEFAULT_MATCH_CONFIG } from "./matching";
+import { blendAnalogueBoms, describeAnalogueBasis, findAnalogues } from "./analogues";
 import {
   availablePeriods,
   collapseToSkus,
@@ -69,6 +71,13 @@ const STABLE_COVERAGE = 0.85;
 /** Coverage below which a component is too thinly evidenced to plan. */
 const THIN_COVERAGE = 0.5;
 
+/**
+ * Above this share of a component's requirement resting on weakly-evidenced
+ * inference, it stops being something to commit and becomes something to
+ * review.
+ */
+const MATERIALLY_INFERRED = 0.35;
+
 /** Planning statuses on a BOM line that mean the component is still moving. */
 const UNSETTLED_STATUS = /artwork|pending|unresolved|draft|tbc|tbd|provisional/i;
 
@@ -88,6 +97,12 @@ export interface BuildSituationsOptions {
    * it was derived from.
    */
   volumeOverrideUnits?: Record<string, number>;
+  /**
+   * Scenario analogue weights, keyed `${candidateId}::${analogueId}`. Zero
+   * takes an analogue out of the blend that derives a not-yet-specified
+   * item's components.
+   */
+  analogueWeightOverrides?: Record<string, number>;
 }
 
 export function buildSituations(
@@ -108,7 +123,8 @@ export function buildSituations(
         formalLoad,
         options.overridesBySituation?.[scope.id] ?? EMPTY_SITUATION_OVERRIDES,
         options.leadTimeOverrideDays,
-        options.volumeOverrideUnits
+        options.volumeOverrideUnits,
+        options.analogueWeightOverrides
       )
     )
     .sort((a, b) => b.bridge.unresolvedValue - a.bridge.unresolvedValue);
@@ -183,7 +199,8 @@ function buildSituation(
   formalLoad: Map<string, number>,
   overrides: SituationOverrides,
   leadTimeOverrideDays?: Record<string, number>,
-  volumeOverrideUnits?: Record<string, number>
+  volumeOverrideUnits?: Record<string, number>,
+  analogueWeightOverrides?: Record<string, number>
 ): PlanningSituation {
   const now = dataset.metadata.planningNow.slice(0, 10);
   const label = eventLabel(scope.eventOrProgram);
@@ -237,6 +254,42 @@ function buildSituation(
     } satisfies CandidateItem;
   });
 
+  // A product can be real enough to plan before it is specified enough to
+  // explode. Items with no bill of materials of their own read theirs from
+  // comparable products instead of vanishing from the material picture.
+  const bomByParent = new Map<string, BomRow[]>();
+  for (const row of dataset.boms) {
+    const list = bomByParent.get(row.parentItemId);
+    if (list) list.push(row);
+    else bomByParent.set(row.parentItemId, [row]);
+  }
+  const analoguePool = dataset.historicalItems;
+  for (const candidate of candidates) {
+    if (bomByParent.has(candidate.itemId)) {
+      candidate.derivation = "own_bom";
+      candidate.derivationLabel = "Specified — components come from this item's own bill of materials";
+      continue;
+    }
+    const source = priorRows.find((r) => r.id === candidate.id);
+    if (!source) continue;
+
+    const excluded: string[] = [];
+    const found = findAnalogues(source, analoguePool, bomByParent);
+    const weighted = found.map((analogue) => {
+      const override = analogueWeightOverrides?.[`${candidate.id}::${analogue.candidateId}`];
+      if (override === undefined) return analogue;
+      if (override <= 0) excluded.push(analogue.candidateId);
+      return { ...analogue, weight: Math.max(0, Math.min(1, override)), excluded: override <= 0 };
+    });
+
+    candidate.analogues = weighted;
+    candidate.derivation = weighted.some((a) => !a.excluded && a.weight > 0) ? "analogue" : "none";
+    candidate.derivationLabel =
+      candidate.derivation === "analogue"
+        ? describeAnalogueBasis(weighted)
+        : "No bill of materials, and no comparable product to read one from.";
+  }
+
   const bridge = buildBridge(businessRows, currentRows, candidates, pricePerUnit, scope.currency);
 
   const productionWindow = resolveProductionWindow(scope, currentRows, priorRows);
@@ -249,7 +302,8 @@ function buildSituation(
     candidates,
     productionWindow,
     now,
-    leadTimeOverrideDays
+    leadTimeOverrideDays,
+    bomByParent
   );
   const runway = buildRunway(now, productionWindow, salesWindow, materialExposure, capacityExposure);
 
@@ -626,7 +680,8 @@ function buildMaterialExposure(
   candidates: readonly CandidateItem[],
   productionWindow: DateRange | undefined,
   now: string,
-  leadTimeOverrideDays?: Record<string, number>
+  leadTimeOverrideDays: Record<string, number> | undefined,
+  bomByParent: ReadonlyMap<string, BomRow[]>
 ): MaterialExposure {
   const empty: MaterialExposure = {
     rows: [],
@@ -651,32 +706,26 @@ function buildMaterialExposure(
     };
   }
 
-  const bomByParent = new Map<string, BomRow[]>();
-  for (const row of dataset.boms) {
-    const list = bomByParent.get(row.parentItemId);
-    if (list) list.push(row);
-    else bomByParent.set(row.parentItemId, [row]);
-  }
-
-  // An item with no BOM at all is not evidence that a component is absent — it
-  // is evidence that we do not know. Counting it in the denominator would
-  // deflate every component's coverage and wrongly push materials to WAIT, so
-  // those items are excluded here and reported separately instead.
-  const withBom = loadBearing.filter((c) => bomByParent.has(c.itemId));
+  // An item with neither a bill of materials nor a comparable product to read
+  // one from is not evidence that a component is absent — it is evidence that
+  // we do not know. Counting it in the denominator would deflate every
+  // component's coverage and wrongly push materials to WAIT, so it is excluded
+  // here and reported separately instead.
+  const explodable = loadBearing.filter((c) => c.derivation !== "none");
   const itemsWithoutBom = loadBearing
-    .filter((c) => !bomByParent.has(c.itemId))
+    .filter((c) => c.derivation === "none")
     .map((c) => ({ candidateId: c.id, itemName: c.itemName, units: c.plannedUnits }));
 
   const allValidatedUnits = sum(loadBearing.map((c) => c.plannedUnits));
   // Coverage is unit-weighted: a component present on the BOMs of the items
   // carrying most of the volume is better evidenced than one on a small item.
-  const totalUnits = sum(withBom.map((c) => c.plannedUnits));
+  const totalUnits = sum(explodable.map((c) => c.plannedUnits));
   const bomCoveragePct = allValidatedUnits > 0 ? totalUnits / allValidatedUnits : 0;
 
   const accum = new Map<
     string,
     {
-      row: BomRow;
+      row: BomRow | InferredBomLine;
       requirement: number;
       coveredUnits: number;
       unsettled: boolean;
@@ -684,15 +733,20 @@ function buildMaterialExposure(
     }
   >();
 
-  for (const candidate of withBom) {
-    const bom = bomByParent.get(candidate.itemId);
-    if (!bom) continue;
+  for (const candidate of explodable) {
+    // Either the item's own specification, or the blend of comparable products
+    // standing in for one it does not have yet.
+    const own = bomByParent.get(candidate.itemId);
+    const lines: (BomRow | InferredBomLine)[] =
+      own ?? blendAnalogueBoms(candidate.analogues, bomByParent);
+
     // A component is only committable ahead of the item if the item itself is
     // settled; `under_review` volume can still evaporate.
     const settled = candidate.disposition === "carry_forward";
-    for (const line of bom) {
+    for (const line of lines) {
       const scrap = line.scrapPct ?? 0;
       const requirement = candidate.plannedUnits * line.quantityPerParent * (1 + scrap);
+      const inferredConfidence = "confidence" in line ? line.confidence : undefined;
       const contributor: MaterialContributor = {
         candidateId: candidate.id,
         itemId: candidate.itemId,
@@ -700,6 +754,8 @@ function buildMaterialExposure(
         units: candidate.plannedUnits,
         requirement,
         settled,
+        derivation: candidate.derivation,
+        inferredConfidence,
       };
       const existing = accum.get(line.componentId);
       const unsettled =
@@ -727,7 +783,17 @@ function buildMaterialExposure(
 
   const rows: MaterialExposureRow[] = [...accum.entries()].map(([materialId, entry]) => {
     const coverage = totalUnits > 0 ? entry.coveredUnits / totalUnits : 0;
-    const status = classifyMaterial(entry.row, coverage, entry.unsettled);
+    // Only downgrade when the requirement *materially* rests on inference. A
+    // component five specified items need is orderable whatever the sixth,
+    // unspecified one turns out to be — the same reasoning as the shared vs
+    // item-specific split.
+    const inferredWeakness = contributorInference(entry.contributors);
+    const status = classifyMaterial(
+      entry.row,
+      coverage,
+      entry.unsettled,
+      inferredWeakness > MATERIALLY_INFERRED
+    );
     const lead = leadTimes.get(materialId);
     const override = leadTimeOverrideDays?.[materialId];
     const leadTimeDays = override ?? lead?.days ?? 0;
@@ -736,9 +802,12 @@ function buildMaterialExposure(
 
     // Only the volume itself is uncertain here, so the range is the requirement
     // scaled by how thinly the component is evidenced across analogues.
-    const spread = 1 - Math.min(0.35, (1 - coverage) * 0.5);
+    // An inferred requirement is genuinely less certain than a specified one.
+    // Widening the band is how that is said without changing the estimate.
+    const spread = 1 - Math.min(0.45, (1 - coverage) * 0.5 + inferredWeakness * 0.25);
 
     const contributors = [...entry.contributors].sort((a, b) => b.requirement - a.requirement);
+    const hasInferredSource = contributors.some((c) => c.derivation === "analogue");
     // Shared across several items means the component is justified whatever
     // happens to any one of them. Needed by exactly one item, and that item not
     // settled, means it cannot be committed ahead of the decision.
@@ -771,6 +840,7 @@ function buildMaterialExposure(
       contributors,
       sourcing,
       blockedByItemName: soleUnsettled,
+      hasInferredSource,
     } satisfies MaterialExposureRow;
   });
 
@@ -800,16 +870,39 @@ function buildMaterialExposure(
  * packaging that depends on unreleased artwork cannot, however well evidenced
  * the volume is (V2 §15.6 — never imply uncertain packaging is orderable).
  */
-function classifyMaterial(row: BomRow, coverage: number, unsettled: boolean): MaterialPlanningStatus {
+function classifyMaterial(
+  row: BomRow | InferredBomLine,
+  coverage: number,
+  unsettled: boolean,
+  inferred: boolean
+): MaterialPlanningStatus {
   if (unsettled) return "WAIT";
   if (coverage < THIN_COVERAGE) return "WAIT";
   const isIngredient = row.componentType === "RAW_MATERIAL" || row.componentType === "SEMI_FINISHED";
-  if (isIngredient && coverage >= STABLE_COVERAGE) return "PLAN_NOW";
+  // A stable ingredient read from comparable products is a reasonable thing to
+  // review; it is not a reasonable thing to commit as though it were specified.
+  if (isIngredient && coverage >= STABLE_COVERAGE) return inferred ? "REVIEW" : "PLAN_NOW";
   return "REVIEW";
 }
 
+/**
+ * How much of a component's requirement rests on inference, weighted by how
+ * well evidenced each inferred share is. Zero when every share came from a
+ * real bill of materials.
+ */
+function contributorInference(contributors: readonly MaterialContributor[]): number {
+  const total = sum(contributors.map((c) => c.requirement));
+  if (total <= 0) return 0;
+  const weak = sum(
+    contributors
+      .filter((c) => c.derivation === "analogue")
+      .map((c) => c.requirement * (1 - (c.inferredConfidence ?? 0.5)))
+  );
+  return Math.min(1, weak / total);
+}
+
 function materialReason(
-  row: BomRow,
+  row: BomRow | InferredBomLine,
   coverage: number,
   unsettled: boolean,
   status: MaterialPlanningStatus

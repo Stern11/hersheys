@@ -22,6 +22,14 @@ export type DecisionUrgency = "overdue" | "urgent" | "soon" | "later";
 export interface PendingDecision {
   id: string;
   kind: DecisionKind;
+  /** Set for decisions the planner can settle here rather than elsewhere. */
+  materialId?: string;
+  /** Quantity and unit, for a decision that is an order. */
+  quantity?: number;
+  uom?: string;
+  /** True once the planner has released it. */
+  released?: boolean;
+  releasedAt?: string;
   /** What is being decided, in the planner's words. */
   title: string;
   /** The date it stops being reversible. Absent for undated work. */
@@ -56,7 +64,10 @@ export function urgencyOf(weeksAway: number | undefined): DecisionUrgency {
  * what is blocking them — an undecided item is itself a decision, and hiding
  * the dates it is holding up is how a deadline arrives unannounced.
  */
-export function pendingDecisions(situation: PlanningSituation): PendingDecision[] {
+export function pendingDecisions(
+  situation: PlanningSituation,
+  releases: Readonly<Record<string, { releasedAt: string }>> = {}
+): PendingDecision[] {
   const out: PendingDecision[] = [];
   const { materialExposure, capacityExposure, runway, bridge, candidateItems } = situation;
 
@@ -69,13 +80,19 @@ export function pendingDecisions(situation: PlanningSituation): PendingDecision[
         .slice(0, 3)
         .map((c) => c.itemName);
 
+      const release = releases[row.materialId];
       out.push({
         id: `material:${row.materialId}`,
         kind: "material_order",
+        materialId: row.materialId,
+        quantity: row.netRequirement ?? row.requirementBase,
+        uom: row.uom,
+        released: release !== undefined,
+        releasedAt: release?.releasedAt,
         title: `Order ${row.materialName}`,
         date: row.decisionDate,
         weeksAway: row.weeksToDecision,
-        urgency: urgencyOf(row.weeksToDecision),
+        urgency: release ? "later" : urgencyOf(row.weeksToDecision),
         consequence:
           row.leadTimeDays > 0
             ? `${row.leadTimeDays}-day lead time`

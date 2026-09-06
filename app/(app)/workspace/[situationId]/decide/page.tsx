@@ -13,7 +13,7 @@
 
 import { use, useMemo } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowRight } from "lucide-react";
+import { AlertTriangle, ArrowRight, Check } from "lucide-react";
 import { useSituation } from "@/components/dataset/dataset-provider";
 import { useDatasetStore } from "@/stores/dataset-store";
 import { RunwayTimeline } from "@/components/v2/runway";
@@ -25,10 +25,11 @@ import {
   type PendingDecision,
 } from "@/lib/situations/decisions";
 import { cn } from "@/lib/utils/cn";
-import { fmtDateShort, fmtUnits, fmtWeeks } from "@/lib/utils/format";
-import type { VolumeCommitment } from "@/types/situation";
+import { fmtDateShort, fmtNum, fmtUnits, fmtWeeks } from "@/lib/utils/format";
+import type { MaterialRelease, VolumeCommitment } from "@/types/situation";
 
 const EMPTY_COMMITMENTS: Record<string, VolumeCommitment> = {};
+const EMPTY_RELEASES: Record<string, MaterialRelease> = {};
 
 export default function DecidePage({ params }: { params: Promise<{ situationId: string }> }) {
   const { situationId } = use(params);
@@ -37,18 +38,41 @@ export default function DecidePage({ params }: { params: Promise<{ situationId: 
   const releaseCommitment = useDatasetStore((s) => s.releaseCommitment);
   const commitments = Object.values(stored ?? EMPTY_COMMITMENTS);
 
-  const decisions = useMemo(() => (situation ? pendingDecisions(situation) : []), [situation]);
+  const storedReleases = useDatasetStore((s) => s.overridesBySituation[situationId]?.releases);
+  const releaseMaterial = useDatasetStore((s) => s.releaseMaterial);
+  const undoMaterialRelease = useDatasetStore((s) => s.undoMaterialRelease);
+  const releases = storedReleases ?? EMPTY_RELEASES;
+
+  const decisions = useMemo(
+    () => (situation ? pendingDecisions(situation, releases) : []),
+    [situation, releases]
+  );
   const blocked = useMemo(() => (situation ? blockedMaterials(situation) : []), [situation]);
 
   if (!situation) return <Page>{null}</Page>;
 
-  const next = decisions.find((d) => d.urgency !== "later") ?? decisions[0];
+  // A released decision has been taken; it should stop being the thing the
+  // page shouts about.
+  const next = decisions.find((d) => !d.released && d.urgency !== "later") ?? decisions.find((d) => !d.released);
+
+  const onRelease = (decision: PendingDecision) => {
+    if (!decision.materialId || !decision.date) return;
+    releaseMaterial(situationId, {
+      materialId: decision.materialId,
+      materialName: decision.title.replace(/^Order /, ""),
+      quantity: decision.quantity ?? 0,
+      uom: decision.uom ?? "",
+      decisionDate: decision.date,
+      // Dataset time, never wall-clock.
+      releasedAt: situation.calculatedAt,
+    });
+  };
 
   return (
     <Page>
       <div className="pt-5">
         {next ? (
-          <NextDecision decision={next} />
+          <NextDecision decision={next} onRelease={() => onRelease(next)} />
         ) : (
           <NotAvailable
             title="Nothing is waiting on you"
@@ -61,7 +85,16 @@ export default function DecidePage({ params }: { params: Promise<{ situationId: 
       {decisions.length > 0 ? (
         <div className="divide-y divide-[var(--border)] border-y border-[var(--border)]">
           {decisions.map((decision) => (
-            <DecisionRow key={decision.id} decision={decision} />
+            <DecisionRow
+              key={decision.id}
+              decision={decision}
+              onRelease={() => onRelease(decision)}
+              onUndo={
+                decision.materialId
+                  ? () => undoMaterialRelease(situationId, decision.materialId!)
+                  : undefined
+              }
+            />
           ))}
         </div>
       ) : (
@@ -166,7 +199,13 @@ export default function DecidePage({ params }: { params: Promise<{ situationId: 
 /* Pieces                                                              */
 /* ------------------------------------------------------------------ */
 
-function NextDecision({ decision }: { decision: PendingDecision }) {
+function NextDecision({
+  decision,
+  onRelease,
+}: {
+  decision: PendingDecision;
+  onRelease: () => void;
+}) {
   return (
     <div
       className={cn(
@@ -202,23 +241,56 @@ function NextDecision({ decision }: { decision: PendingDecision }) {
         </div>
       ) : null}
 
-      <Link
-        href={decision.href}
-        className="mt-5 inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] bg-[var(--accent)] px-3.5 py-2 text-[13px] font-medium text-[var(--text-on-accent)] transition-opacity hover:opacity-90"
-        style={{ transitionDuration: "var(--duration-fast)" }}
-      >
-        {decision.cta}
-        <ArrowRight className="size-3.5" />
-      </Link>
+      {/* An order decision is settled here, not somewhere else. Sending the
+          planner to another page to "see the items" was navigation dressed up
+          as an action. */}
+      <div className="mt-5 flex flex-wrap items-center gap-2.5">
+        {decision.materialId ? (
+          <button
+            type="button"
+            onClick={onRelease}
+            className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] bg-[var(--accent)] px-3.5 py-2 text-[13px] font-medium text-[var(--text-on-accent)] transition-opacity hover:opacity-90"
+            style={{ transitionDuration: "var(--duration-fast)" }}
+          >
+            <Check className="size-3.5" />
+            {decision.quantity && decision.quantity > 0
+              ? `Release ${fmtNum(Math.round(decision.quantity))} ${decision.uom} for ordering`
+              : "Release for ordering"}
+          </button>
+        ) : null}
+        <Link
+          href={decision.href}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] px-3.5 py-2 text-[13px] font-medium transition-colors",
+            decision.materialId
+              ? "border border-[var(--border-strong)] text-[var(--text-primary)] hover:bg-[var(--interaction-hover)]"
+              : "bg-[var(--accent)] text-[var(--text-on-accent)] hover:opacity-90"
+          )}
+          style={{ transitionDuration: "var(--duration-fast)" }}
+        >
+          {decision.cta}
+          <ArrowRight className="size-3.5" />
+        </Link>
+      </div>
     </div>
   );
 }
 
-function DecisionRow({ decision }: { decision: PendingDecision }) {
+function DecisionRow({
+  decision,
+  onRelease,
+  onUndo,
+}: {
+  decision: PendingDecision;
+  onRelease: () => void;
+  onUndo?: () => void;
+}) {
   return (
-    <Link
-      href={decision.href}
-      className="group flex items-center gap-5 py-3.5 transition-colors hover:bg-[var(--interaction-hover)]"
+    <div
+      className={cn(
+        "group flex items-center gap-5 py-3.5 transition-colors",
+        decision.released && "opacity-70"
+      )}
       style={{ transitionDuration: "var(--duration-fast)" }}
     >
       <div className="w-[104px] flex-none text-right">
@@ -266,8 +338,42 @@ function DecisionRow({ decision }: { decision: PendingDecision }) {
         </div>
       </div>
 
-      <ArrowRight className="size-3.5 flex-none text-[var(--text-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
-    </Link>
+      {decision.released ? (
+        <span className="flex flex-none items-center gap-2.5">
+          <span className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--risk-positive)]">
+            <Check className="size-3.5" />
+            Released
+          </span>
+          {onUndo ? (
+            <button
+              type="button"
+              onClick={onUndo}
+              className="text-[11.5px] text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
+              style={{ transitionDuration: "var(--duration-fast)" }}
+            >
+              Undo
+            </button>
+          ) : null}
+        </span>
+      ) : decision.materialId ? (
+        <button
+          type="button"
+          onClick={onRelease}
+          className="flex-none rounded-[var(--radius-sm)] border border-[var(--border-strong)] px-2.5 py-1 text-[12px] font-medium text-[var(--text-primary)] opacity-0 transition-opacity hover:bg-[var(--interaction-hover)] focus-visible:opacity-100 group-hover:opacity-100"
+          style={{ transitionDuration: "var(--duration-fast)" }}
+        >
+          Release
+        </button>
+      ) : (
+        <Link
+          href={decision.href}
+          className="flex-none rounded-[var(--radius-sm)] border border-[var(--border-strong)] px-2.5 py-1 text-[12px] font-medium text-[var(--text-primary)] opacity-0 transition-opacity hover:bg-[var(--interaction-hover)] focus-visible:opacity-100 group-hover:opacity-100"
+          style={{ transitionDuration: "var(--duration-fast)" }}
+        >
+          {decision.cta}
+        </Link>
+      )}
+    </div>
   );
 }
 

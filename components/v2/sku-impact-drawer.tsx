@@ -24,7 +24,7 @@ import { Label } from "@/components/v2/page";
 import { matchExplanation, skuImpact, type SkuImpact } from "@/lib/situations/sku-impact";
 import { cn } from "@/lib/utils/cn";
 import { fmtHours, fmtMoney, fmtUnits } from "@/lib/utils/format";
-import type { ContributorDisposition, PlanningSituation } from "@/types/situation";
+import type { CandidateItem, ContributorDisposition, PlanningSituation } from "@/types/situation";
 
 export function SkuImpactDrawer({
   situation,
@@ -51,6 +51,7 @@ export function SkuImpactDrawer({
           ]
             .filter(Boolean)
             .join(" · ")}
+          eyebrow={impact.candidate.derivation === "analogue" ? "No specification yet" : undefined}
         >
           <Body impact={impact} situation={situation} onDisposition={onDisposition} />
         </DrawerContent>
@@ -150,6 +151,18 @@ function Body({
           <LineLoadChart lines={impact.lines} />
         )}
       </section>
+
+      {/* ---------------- how the components were arrived at ---------------- */}
+      {candidate.derivation !== "own_bom" ? (
+        <section>
+          <SectionTitle
+            aside={candidate.derivation === "analogue" ? `${candidate.analogues.length} comparable` : undefined}
+          >
+            No bill of materials for this item
+          </SectionTitle>
+          <AnalogueBasis candidate={candidate} situationId={situation.id} />
+        </section>
+      ) : null}
 
       {/* ---------------- materials ---------------- */}
       <section>
@@ -374,6 +387,96 @@ function Chip({ children, tone }: { children: string; tone: "same" | "different"
 }
 
 /** See the note on `SectionRule` — a heading should sit with its content. */
+/**
+ * Where the components came from when the item has no specification of its own.
+ *
+ * A product can be real enough to plan before it is specified enough to
+ * explode. The honest presentation is neither to hide it nor to show inferred
+ * quantities as though they were firm — it is to name the products they were
+ * read from and how comparable those actually are.
+ */
+function AnalogueBasis({
+  candidate,
+  situationId,
+}: {
+  candidate: CandidateItem;
+  situationId: string;
+}) {
+  if (candidate.derivation === "none") {
+    return (
+      <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-sunken)] px-3.5 py-3">
+        <p className="text-[12.5px] text-[var(--text-secondary)]">{candidate.derivationLabel}</p>
+        <p className="mt-1.5 text-[11.5px] text-[var(--text-muted)]">
+          Its volume still counts toward the plan. Its components cannot be estimated, so nothing
+          below claims them.
+        </p>
+      </div>
+    );
+  }
+
+  const included = candidate.analogues.filter((a) => !a.excluded && a.weight > 0);
+  const totalWeight = included.reduce((sum, a) => sum + a.weight, 0);
+
+  return (
+    <div>
+      <p className="mb-3 text-[12.5px] leading-relaxed text-[var(--text-secondary)]">
+        This item has no specification yet, so its components are read from comparable products.
+        Everything below is an estimate, and the confidence column says how much of the blend
+        actually carries each one.
+      </p>
+
+      <div className="flex flex-col gap-1.5">
+        {candidate.analogues.map((analogue) => (
+          <div
+            key={analogue.candidateId}
+            className={cn(
+              "rounded-[var(--radius-sm)] border border-[var(--border)] px-3 py-2.5",
+              analogue.excluded && "opacity-50"
+            )}
+          >
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="min-w-0 truncate text-[12.5px] font-medium text-[var(--text-primary)]">
+                {analogue.itemName}
+                <span className="ml-2 font-normal text-[var(--text-muted)]">{analogue.period}</span>
+              </span>
+              <span className="flex-none text-[12px] tabular-nums text-[var(--text-secondary)]">
+                {totalWeight > 0 && !analogue.excluded
+                  ? `${Math.round((analogue.weight / totalWeight) * 100)}% of the blend`
+                  : "excluded"}
+              </span>
+            </div>
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {analogue.same.map((d) => (
+                <Chip key={d} tone="same">
+                  {d}
+                </Chip>
+              ))}
+              {analogue.different.map((d) => (
+                <Chip key={d} tone="different">
+                  {d}
+                </Chip>
+              ))}
+            </div>
+            <div className="mt-1.5 text-[11px] text-[var(--text-muted)]">
+              {analogue.componentCount} component{analogue.componentCount === 1 ? "" : "s"} on its
+              bill of materials
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <Link
+        href={`/scenario-lab?situation=${situationId}&item=${encodeURIComponent(candidate.id)}`}
+        className="mt-3 inline-flex items-center gap-1.5 text-[12.5px] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+        style={{ transitionDuration: "var(--duration-fast)" }}
+      >
+        Change which products this is read from
+        <ArrowRight className="size-3" />
+      </Link>
+    </div>
+  );
+}
+
 function SectionTitle({ children, aside }: { children: React.ReactNode; aside?: string }) {
   return (
     <div className="mb-2 flex items-baseline justify-between gap-3">

@@ -22,6 +22,7 @@ import { EMPTY_ADJUSTMENTS } from "@/types/situation";
 import { NotAvailable, Page, SectionRule } from "@/components/v2/page";
 import { ScenarioToolbar } from "./scenario-toolbar";
 import { ControlsVolume } from "./controls-volume";
+import { ControlsAnalogues } from "./controls-analogues";
 import { ControlsCapacity } from "./controls-capacity";
 import { ControlsAllocation } from "./controls-allocation";
 import { ControlsMaterials } from "./controls-materials";
@@ -131,9 +132,17 @@ export function ScenarioLabShell({
             overridesBySituation,
             leadTimeOverrideDays: adjustments.leadTimeDays,
             volumeOverrideUnits: effectiveVolumes,
+            analogueWeightOverrides: adjustments.analogueWeights,
           }).find((s) => s.id === situationId)
         : undefined,
-    [scenarioDataset, overridesBySituation, adjustments.leadTimeDays, effectiveVolumes, situationId]
+    [
+      scenarioDataset,
+      overridesBySituation,
+      adjustments.leadTimeDays,
+      adjustments.analogueWeights,
+      effectiveVolumes,
+      situationId,
+    ]
   );
 
   if (loading) return <Page>{null}</Page>;
@@ -186,10 +195,20 @@ export function ScenarioLabShell({
           <aside className="w-[340px] flex-none">
             {activeScenario ? (
               <>
+                <p className="mb-3 text-[12px] leading-snug text-[var(--text-muted)]">
+                  Change an assumption on the left; every figure on the right recomputes against
+                  the baseline. Nothing here touches the plan until you add it.
+                </p>
                 {/* Volume first and open by default: a planner opens the lab
                     with a demand question, and leading with hours and run
                     rates answered a question they had not asked. */}
                 <ControlsVolume
+                  scenarioId={activeScenario.id}
+                  baseline={baseline}
+                  adjustments={adjustments}
+                  focusItemId={focusItemId}
+                />
+                <ControlsAnalogues
                   scenarioId={activeScenario.id}
                   baseline={baseline}
                   adjustments={adjustments}
