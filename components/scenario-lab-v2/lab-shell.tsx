@@ -13,6 +13,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useDataset } from "@/components/dataset/dataset-provider";
 import { useDatasetStore } from "@/stores/dataset-store";
 import { useSituationScenarioStore } from "@/stores/situation-scenario-store";
@@ -38,6 +39,7 @@ export function ScenarioLabShell({
   situationId: string;
   focusItemId?: string;
 }) {
+  const router = useRouter();
   const { dataset, situations, loading } = useDataset();
   const overridesBySituation = useDatasetStore((s) => s.overridesBySituation);
 
@@ -205,6 +207,7 @@ export function ScenarioLabShell({
                   baseline={baseline}
                   adjustments={adjustments}
                   focusItemId={focusItemId}
+                  onClearFocus={() => router.replace(`/scenario-lab?situation=${situationId}`)}
                 />
                 <ControlsAnalogues
                   scenarioId={activeScenario.id}

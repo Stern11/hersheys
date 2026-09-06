@@ -28,12 +28,15 @@ export function ControlsVolume({
   baseline,
   adjustments,
   focusItemId,
+  onClearFocus,
 }: {
   scenarioId: string;
   baseline: PlanningSituation;
   adjustments: ScenarioAdjustments;
-  /** Item deep-linked from the SKU drawer, scrolled to and outlined on arrival. */
+  /** Item the lab was opened on. When set, this control shows only that one. */
   focusItemId?: string;
+  /** Widens the control back to the whole programme. */
+  onClearFocus?: () => void;
 }) {
   const setVolumeUnits = useSituationScenarioStore((s) => s.setVolumeUnits);
   const clearAdjustment = useSituationScenarioStore((s) => s.clearAdjustment);
@@ -45,11 +48,17 @@ export function ControlsVolume({
   // Only items that actually bear load. Listing every candidate put twenty
   // greyed-out rows a planner cannot act on above the five they can, and a
   // control whose rows mostly do nothing is worse than a shorter one.
-  const items = [...baseline.candidateItems]
+  const carrying = [...baseline.candidateItems]
     .filter(bearsLoad)
     .sort((a, b) => b.plannedUnits - a.plannedUnits);
 
-  const notCarrying = baseline.candidateItems.length - items.length;
+  // Opened on a product, the lab is about that product. Showing every other
+  // item's volume beside it made a SKU-scoped scenario look like a season one
+  // and left the planner to find their own row.
+  const focused = focusItemId ? carrying.find((c) => c.id === focusItemId) : undefined;
+  const items = focused ? [focused] : carrying;
+  const hiddenCount = focused ? carrying.length - 1 : 0;
+  const notCarrying = baseline.candidateItems.length - carrying.length;
 
   return (
     <CollapsibleGroup
@@ -85,7 +94,18 @@ export function ControlsVolume({
               onClear={() => clearAdjustment(scenarioId, "volumeUnits", item.id)}
             />
           ))}
-          {notCarrying > 0 ? (
+          {hiddenCount > 0 && onClearFocus ? (
+            <button
+              type="button"
+              onClick={onClearFocus}
+              className="mt-2.5 self-start text-[11.5px] text-[var(--text-secondary)] underline-offset-2 transition-colors hover:text-[var(--text-primary)] hover:underline"
+              style={{ transitionDuration: "var(--duration-fast)" }}
+            >
+              Show the other {hiddenCount} product{hiddenCount === 1 ? "" : "s"} in{" "}
+              {baseline.title}
+            </button>
+          ) : null}
+          {!focused && notCarrying > 0 ? (
             <p className="mt-2.5 text-[11px] leading-snug text-[var(--text-muted)]">
               {notCarrying} other prior item{notCarrying === 1 ? "" : "s"} bear no load. Carry one
               forward on Reconcile to change its volume here.

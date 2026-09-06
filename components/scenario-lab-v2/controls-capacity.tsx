@@ -36,7 +36,9 @@ export function ControlsCapacity({
   return (
     <CollapsibleGroup
       title="Capacity"
-      defaultOpen
+      // Closed by default: capacity is a supply-side answer to a demand-side
+      // question, and opening it first put four lines of hours above the one
+      // control the planner came for.
       action={
         hasOverrides ? (
           <button
@@ -77,7 +79,8 @@ export function ControlsCapacity({
                   max={1.2}
                   onCommit={(value) => setTargetUtilization(scenarioId, line.lineId, value)}
                   onClear={() => clearAdjustment(scenarioId, "targetUtilization", line.lineId)}
-                />
+                  slider
+                  />
                 <div className="flex flex-col gap-1.5 border-l border-[var(--border)] pl-3">
                   {cellsForLine.map((cell) => {
                     const key = capacityKey(line.lineId, cell.period);

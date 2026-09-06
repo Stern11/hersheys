@@ -251,6 +251,7 @@ function buildSituation(
       plannedValue: volume.plannedValue || volume.plannedUnits * pricePerUnit,
       plannedBasis: volume.basis,
       seasonHistory: volume.seasonHistory,
+      isNewThisSeason: volume.isNewThisSeason,
     } satisfies CandidateItem;
   });
 

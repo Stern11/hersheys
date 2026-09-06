@@ -17,6 +17,7 @@ import { BusinessToPlanBridge } from "@/components/v2/bridge";
 import { CandidateFilterBar } from "@/components/v2/candidate-filters";
 import { DataTable, type Column } from "@/components/v2/data-table";
 import { SeasonBasis } from "@/components/v2/season-basis";
+import { NewBadge } from "@/components/v2/new-badge";
 import { SkuImpactDrawer } from "@/components/v2/sku-impact-drawer";
 import { MaterialDrawer } from "@/components/v2/material-drawer";
 import { DispositionBadge, DISPOSITION_ORDER, dispositionLabel } from "@/components/v2/state-badge";
@@ -63,7 +64,10 @@ export default function ReconcilePage({ params }: { params: Promise<{ situationI
       sortValue: (row) => row.itemName,
       render: (row) => (
         <div className="min-w-0">
-          <div className="truncate font-medium text-[var(--text-primary)]">{row.itemName}</div>
+          <div className="flex items-center gap-2">
+            <span className="truncate font-medium text-[var(--text-primary)]">{row.itemName}</span>
+            {row.isNewThisSeason ? <NewBadge /> : null}
+          </div>
           <div className="truncate text-[11.5px] text-[var(--text-muted)]">
             {row.productFamily}
             {row.customer ? ` · ${row.customer}` : ""}

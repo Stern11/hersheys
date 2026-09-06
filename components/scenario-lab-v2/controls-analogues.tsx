@@ -37,15 +37,20 @@ export function ControlsAnalogues({
   const overrides = adjustments.analogueWeights ?? {};
   const hasOverrides = Object.keys(overrides).length > 0;
 
-  const items = baseline.candidateItems.filter(
+  const all = baseline.candidateItems.filter(
     (c) => c.disposition === "carry_forward" && c.derivation === "analogue"
   );
+  // Scoped to the product the lab was opened on, like every other control —
+  // otherwise "these items have no bill of materials" named a set the planner
+  // had not asked about.
+  const focused = focusItemId ? all.find((c) => c.id === focusItemId) : undefined;
+  const items = focusItemId ? (focused ? [focused] : []) : all;
   if (items.length === 0) return null;
 
   return (
     <CollapsibleGroup
       title="Comparable products"
-      defaultOpen={items.some((i) => i.id === focusItemId)}
+      defaultOpen={false}
       action={
         hasOverrides ? (
           <button
@@ -60,8 +65,9 @@ export function ControlsAnalogues({
       }
     >
       <p className="mb-3 text-[11.5px] leading-snug text-[var(--text-muted)]">
-        These items have no bill of materials yet. Their components are read from the products
-        below — set one to zero to take it out of the blend.
+        {focused
+          ? `${focused.itemName} has no bill of materials yet. Its components are read from the products below — set one to zero to take it out of the blend.`
+          : "These items have no bill of materials yet. Their components are read from the products below — set one to zero to take it out of the blend."}
       </p>
 
       <div className="flex flex-col gap-4">
@@ -70,6 +76,7 @@ export function ControlsAnalogues({
             key={item.id}
             item={item}
             overrides={overrides}
+            showName={!focused}
             focused={item.id === focusItemId}
             onWeight={(analogueId, weight) => setAnalogueWeight(scenarioId, item.id, analogueId, weight)}
           />
@@ -82,11 +89,13 @@ export function ControlsAnalogues({
 function ItemAnalogues({
   item,
   overrides,
+  showName,
   focused,
   onWeight,
 }: {
   item: CandidateItem;
   overrides: Record<string, number>;
+  showName: boolean;
   focused: boolean;
   onWeight: (analogueId: string, weight: number) => void;
 }) {
@@ -102,9 +111,11 @@ function ItemAnalogues({
       )}
       style={{ transitionDuration: "var(--duration-medium)" }}
     >
-      <div className="mb-2 truncate text-[12.5px] font-medium text-[var(--text-primary)]">
-        {item.itemName}
-      </div>
+      {showName ? (
+        <div className="mb-2 truncate text-[12.5px] font-medium text-[var(--text-primary)]">
+          {item.itemName}
+        </div>
+      ) : null}
 
       {item.analogues.length === 0 ? (
         <p className="text-[11.5px] text-[var(--text-muted)]">

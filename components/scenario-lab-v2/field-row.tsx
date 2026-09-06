@@ -14,6 +14,7 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import { fmtUnits } from "@/lib/utils/format";
 
 export type FieldDisplay = "pct" | "num" | "units";
@@ -56,6 +57,7 @@ export function FieldRow({
   max,
   labelWidth = 104,
   inputWidth = 68,
+  slider = false,
 }: {
   label: string;
   baseline: number;
@@ -70,6 +72,8 @@ export function FieldRow({
   labelWidth?: number;
   /** Wider for seven-figure volumes, which do not fit the default box. */
   inputWidth?: number;
+  /** Adds a slider beside the field. Requires both `min` and `max`. */
+  slider?: boolean;
 }) {
   const effective = override ?? baseline;
   const isOverridden = override !== undefined;
@@ -98,47 +102,85 @@ export function FieldRow({
     onCommit(next);
   };
 
+  // A bounded value is easier to move than to type. Sliders are offered where
+  // the range is real (a utilisation target, a share) and the exact digit
+  // rarely matters; a seven-figure volume still gets a field, because dragging
+  // to 1,154,921 is not a thing anyone wants to do.
+  const sliderRange =
+    slider && min !== undefined && max !== undefined ? { min, max } : undefined;
+
   return (
-    <div className="flex items-center gap-2">
-      <span
-        className="flex-none truncate text-[12px] text-[var(--text-secondary)]"
-        style={{ width: labelWidth }}
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-2">
+        {labelWidth > 0 ? (
+          <span
+            className="flex-none truncate text-[12px] text-[var(--text-secondary)]"
+            style={{ width: labelWidth }}
+          >
+            {label}
+          </span>
+        ) : null}
+
+        {sliderRange ? (
+          <Slider
+            value={[toInputValue(effective, display)]}
+            min={toInputValue(sliderRange.min, display)}
+            max={toInputValue(sliderRange.max, display)}
+            step={display === "pct" ? 1 : 5}
+            onValueChange={([v]) => onCommit(fromInputValue(v ?? 0, display))}
+            className="min-w-0 flex-1"
+            aria-label={label || "value"}
+          />
+        ) : null}
+
+        <Input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          }}
+          inputMode="decimal"
+          aria-label={label || "value"}
+          className="h-7 flex-none text-right"
+          style={{ width: inputWidth }}
+        />
+
+        {/* A 12px glyph is not a hit area. The button is padded to something a
+            planner can actually land on, and only appears once there is an
+            override to clear. */}
+        {isOverridden ? (
+          <button
+            type="button"
+            onClick={onClear}
+            title="Clear override"
+            aria-label="Clear override"
+            className="-mr-1 flex size-7 flex-none items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-muted)] transition-colors hover:bg-[var(--interaction-hover)] hover:text-[var(--text-primary)]"
+            style={{ transitionDuration: "var(--duration-fast)" }}
+          >
+            <X className="size-3.5" />
+          </button>
+        ) : (
+          <span className="size-7 flex-none" aria-hidden />
+        )}
+      </div>
+
+      {/* On its own line so it can never be truncated into "Baseline 78 · Scen…" */}
+      <div
+        className="text-[11px] tabular-nums text-[var(--text-muted)]"
+        style={{ paddingLeft: labelWidth > 0 ? labelWidth + 8 : 0 }}
       >
-        {label}
-      </span>
-      <Input
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-        }}
-        inputMode="decimal"
-        className="h-7 flex-none text-right"
-        style={{ width: inputWidth }}
-      />
-      <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--text-muted)]">
         {isOverridden ? (
           <>
-            Baseline {formatValue(baseline, display)} · Scenario {formatValue(effective, display)} ·{" "}
-            {formatSigned(effective - baseline, display)}
+            Baseline {formatValue(baseline, display)} → {formatValue(effective, display)}{" "}
+            <span className="font-medium text-[var(--state-scenario)]">
+              {formatSigned(effective - baseline, display)}
+            </span>
           </>
         ) : (
           `Baseline ${formatValue(baseline, display)}`
         )}
-      </span>
-      {isOverridden ? (
-        <button
-          type="button"
-          onClick={onClear}
-          title="Clear override"
-          className="flex-none text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-        >
-          <X className="size-3" />
-        </button>
-      ) : (
-        <span className="size-3 flex-none" aria-hidden />
-      )}
+      </div>
     </div>
   );
 }

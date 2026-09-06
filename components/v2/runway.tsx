@@ -216,17 +216,49 @@ function MilestoneLane({ marker, left }: { marker: RunwayMarker; left: number })
       </div>
 
       <div className="relative h-full">
+        {/* The dot is 10px; the thing you hover is 28px around it. A marker a
+            planner has to aim at is a marker they will not read. */}
         <span
-          className={cn(
-            "absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-[var(--surface)]",
-            first ? "size-3" : "size-2.5"
-          )}
-          style={{
-            left: `${left}%`,
-            background: first ? "var(--risk-critical)" : `var(${MARKER_TOKEN[marker.kind]})`,
-          }}
-          title={`${marker.label} · ${fmtDateShort(marker.date)}${marker.detail ? ` · ${marker.detail}` : ""}`}
-        />
+          className="group absolute top-1/2 z-10 flex size-7 -translate-x-1/2 -translate-y-1/2 cursor-default items-center justify-center"
+          style={{ left: `${left}%` }}
+          tabIndex={0}
+          role="button"
+          aria-label={`${marker.label}, ${fmtDateShort(marker.date)}`}
+        >
+          <span
+            className={cn(
+              "rounded-full ring-2 ring-[var(--surface)] transition-transform",
+              first ? "size-3" : "size-2.5",
+              "group-hover:scale-125 group-focus-visible:scale-125"
+            )}
+            style={{
+              background: first ? "var(--risk-critical)" : `var(${MARKER_TOKEN[marker.kind]})`,
+              transitionDuration: "var(--duration-fast)",
+              transitionTimingFunction: "var(--ease-out)",
+            }}
+          />
+          <span
+            role="tooltip"
+            className={cn(
+              "pointer-events-none absolute bottom-[calc(100%+2px)] left-1/2 w-max max-w-[280px] -translate-x-1/2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-elevated)] px-2.5 py-1.5 text-left opacity-0 shadow-lg transition-opacity",
+              "group-hover:opacity-100 group-focus-visible:opacity-100"
+            )}
+            style={{ transitionDuration: "var(--duration-fast)" }}
+          >
+            <span className="block text-[12px] font-medium text-[var(--text-primary)]">
+              {marker.label}
+            </span>
+            <span className="block text-[11.5px] tabular-nums text-[var(--text-secondary)]">
+              {fmtDateShort(marker.date)} ·{" "}
+              {overdue ? `${Math.abs(marker.weeksAway)}w overdue` : `in ${marker.weeksAway}w`}
+            </span>
+            {marker.detail ? (
+              <span className="mt-0.5 block text-[11px] leading-snug text-[var(--text-muted)]">
+                {marker.detail}
+              </span>
+            ) : null}
+          </span>
+        </span>
         {marker.detail ? (
           <span
             className="absolute top-1/2 max-w-[46%] -translate-y-1/2 truncate pl-3 text-[11.5px] text-[var(--text-muted)]"

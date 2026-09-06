@@ -54,7 +54,15 @@ export function SkuImpactDrawer({
           ]
             .filter(Boolean)
             .join(" · ")}
-          eyebrow={impact.candidate.derivation === "analogue" ? "No specification yet" : undefined}
+          eyebrow={
+            impact.candidate.isNewThisSeason
+              ? impact.candidate.derivation === "analogue"
+                ? "New this season · no specification yet"
+                : "New this season"
+              : impact.candidate.derivation === "analogue"
+                ? "No specification yet"
+                : undefined
+          }
         >
           <Body
             impact={impact}

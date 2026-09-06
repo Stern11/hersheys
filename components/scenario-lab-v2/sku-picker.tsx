@@ -21,6 +21,7 @@ import { ArrowRight, FlaskConical, Search } from "lucide-react";
 import { useDataset } from "@/components/dataset/dataset-provider";
 import { useSituationScenarioStore } from "@/stores/situation-scenario-store";
 import { NotAvailable, Page, PageHeader, SectionRule } from "@/components/v2/page";
+import { NewBadge } from "@/components/v2/new-badge";
 import { cn } from "@/lib/utils/cn";
 import { fmtMoney, fmtUnits } from "@/lib/utils/format";
 import type { CandidateItem, PlanningSituation } from "@/types/situation";
@@ -151,8 +152,9 @@ function SkuRow({ item, situation }: { item: CandidateItem; situation: PlanningS
           <span className="truncate text-[13.5px] font-medium text-[var(--text-primary)]">
             {item.itemName}
           </span>
+          {item.isNewThisSeason ? <NewBadge /> : null}
           {item.derivation === "analogue" ? (
-            <span className="flex-none rounded-[var(--radius-sm)] bg-[var(--state-inferred-soft)] px-1.5 py-0.5 text-[10.5px] font-medium text-[var(--state-inferred)]">
+            <span className="flex-none rounded-[var(--radius-sm)] bg-[var(--border)] px-1.5 py-0.5 text-[10.5px] font-medium text-[var(--text-secondary)]">
               inferred BOM
             </span>
           ) : null}

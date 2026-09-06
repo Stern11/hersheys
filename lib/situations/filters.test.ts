@@ -29,6 +29,7 @@ function candidate(partial: Partial<CandidateItem> & { id: string }): CandidateI
       label: "1 season",
     },
     seasonHistory: [{ period: "2026-Halloween", units }],
+    isNewThisSeason: false,
     derivation: "own_bom" as const,
     analogues: [],
     derivationLabel: "",

@@ -158,6 +158,8 @@ export interface CollapsedSku {
   plannedUnits: number;
   plannedValue: number;
   basis: PlannedVolumeBasis;
+  /** Absent from the earlier comparable seasons — new, not a repeat. */
+  isNewThisSeason: boolean;
 }
 
 export interface CollapseOptions {
@@ -193,6 +195,14 @@ export function collapseToSkus(
       : options.businessGrowthPct !== undefined
         ? "business_plan_growth"
         : "prior_actual";
+
+  // Measured against the *whole* history, not the selected basis: a product is
+  // not new because the planner narrowed the seasons, and calling it new on
+  // that basis would flip the marker every time they changed the control.
+  const earliestPeriod = availablePeriods(rows)[0];
+  const seenEarly = new Set(
+    rows.filter((r) => r.historicalPeriod === earliestPeriod).map((r) => crossSeasonKey(r))
+  );
 
   const bySku = new Map<string, HistoricalItemRow[]>();
   for (const row of inBasis) {
@@ -236,6 +246,8 @@ export function collapseToSkus(
       seasonHistory,
       plannedUnits,
       plannedValue,
+      // Only meaningful once there is more than one season to be absent from.
+      isNewThisSeason: earliestPeriod !== undefined && seenEarly.size > 0 && !seenEarly.has(key),
       basis: {
         kind: override !== undefined ? "planner_override" : growthSource,
         seasonsUsed: ordered.map((r) => r.historicalPeriod),

@@ -90,7 +90,8 @@ export function ControlsAllocation({
                   max={1}
                   onCommit={(value) => setAllocation(scenarioId, mapping.itemOrFamilyId, mapping.lineId, value)}
                   onClear={() => clearAdjustment(scenarioId, "allocation", key)}
-                />
+                  slider
+                  />
                 <FieldRow
                   label="Run rate /h"
                   display="num"

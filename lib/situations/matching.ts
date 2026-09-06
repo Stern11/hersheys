@@ -424,6 +424,8 @@ export function buildCandidates(
         derivation: "none",
         analogues: [],
         derivationLabel: "",
+        // Resolved in build.ts, which can see every season; matching sees one row.
+        isNewThisSeason: false,
         disposition: chosen ?? proposed,
         proposedDisposition: proposed,
         match,

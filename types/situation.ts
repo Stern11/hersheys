@@ -222,6 +222,13 @@ export interface CandidateItem {
   analogues: AnalogueMatch[];
   /** One line saying where the components came from. */
   derivationLabel: string;
+  /**
+   * True when this product did not exist in the earlier comparable seasons —
+   * an innovation, a renovation, a new pack. It behaves differently from a
+   * repeat: there is less to reason from, and its components are more often
+   * inferred than specified, so it is worth finding at a glance.
+   */
+  isNewThisSeason: boolean;
   disposition: ContributorDisposition;
   /** Set when the disposition came from matching rather than the planner. */
   proposedDisposition: ContributorDisposition;
