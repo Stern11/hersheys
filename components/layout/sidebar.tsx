@@ -44,10 +44,18 @@ const PRIMARY_NAV = [
   { href: "/decisions", label: "Decisions", icon: CheckSquare },
 ];
 
-export function Sidebar() {
+export function Sidebar({
+  forceExpanded = false,
+  onNavigate,
+}: {
+  /** The mobile overlay always shows labels — it has the width to spare. */
+  forceExpanded?: boolean;
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
-  const collapsed = useAppStore((s) => s.sidebarCollapsed);
+  const stored = useAppStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
+  const collapsed = forceExpanded ? false : stored;
 
   return (
     <aside
@@ -86,6 +94,7 @@ export function Sidebar() {
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  onClick={onNavigate}
                   title={collapsed ? item.label : undefined}
                   aria-label={collapsed ? item.label : undefined}
                   className={cn(
@@ -120,9 +129,13 @@ export function Sidebar() {
       >
         <UserMenu collapsed={collapsed} />
 
+        {/* Collapsing is a desktop affordance: the mobile overlay is already
+            the compact form, and shrinking it there would leave an icon rail
+            floating over the page. */}
         <button
           type="button"
           onClick={toggleSidebar}
+          hidden={forceExpanded}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           aria-expanded={!collapsed}

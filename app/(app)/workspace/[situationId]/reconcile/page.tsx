@@ -186,7 +186,7 @@ export default function ReconcilePage({ params }: { params: Promise<{ situationI
 
   return (
     <Page>
-      <div className="flex items-end justify-between gap-8 pt-7">
+      <div className="flex flex-wrap items-end justify-between gap-6 pt-5 sm:gap-8 sm:pt-7">
         <HeroMetric
           label="Not represented"
           value={fmtMoney(bridge.unresolvedValue, bridge.currency)}

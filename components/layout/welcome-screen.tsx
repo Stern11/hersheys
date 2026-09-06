@@ -44,8 +44,8 @@ function Welcome({ googleEnabled }: { googleEnabled: boolean }) {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[var(--background)] px-8 py-16">
-      <div className="grid w-full max-w-[980px] gap-14 lg:grid-cols-[1.15fr_auto] lg:items-center">
+    <main className="flex min-h-screen items-center justify-center bg-[var(--background)] px-5 py-10 sm:px-8 sm:py-16">
+      <div className="grid w-full max-w-[980px] gap-10 lg:grid-cols-[1.15fr_auto] lg:items-center lg:gap-14">
         {/* ---------------- the promise ---------------- */}
         <div>
           <div className="mb-7 flex items-center gap-2.5">
@@ -57,7 +57,7 @@ function Welcome({ googleEnabled }: { googleEnabled: boolean }) {
             </span>
           </div>
 
-          <h1 className="max-w-[520px] text-[36px] font-semibold leading-[1.15] tracking-[-0.025em] text-[var(--text-primary)]">
+          <h1 className="max-w-[520px] text-[28px] font-semibold leading-[1.15] tracking-[-0.025em] text-[var(--text-primary)] sm:text-[36px]">
             Plan what your formal plan cannot see yet.
           </h1>
           <p className="mt-4 max-w-[520px] text-[15px] leading-relaxed text-[var(--text-secondary)]">

@@ -209,7 +209,7 @@ function NextDecision({
   return (
     <div
       className={cn(
-        "rounded-[var(--radius-lg)] border px-7 py-6",
+        "rounded-[var(--radius-lg)] border px-5 py-5 sm:px-7 sm:py-6",
         decision.urgency === "overdue"
           ? "border-[var(--risk-critical)] bg-[var(--risk-critical-soft)]"
           : decision.urgency === "urgent"
@@ -219,7 +219,7 @@ function NextDecision({
     >
       <Label>Next decision</Label>
       <div className="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-        <span className="text-[26px] font-semibold leading-tight tracking-tight text-[var(--text-primary)]">
+        <span className="text-[21px] font-semibold leading-tight tracking-tight text-[var(--text-primary)] sm:text-[26px]">
           {decision.title}
         </span>
         {decision.date ? (
@@ -293,7 +293,7 @@ function DecisionRow({
       )}
       style={{ transitionDuration: "var(--duration-fast)" }}
     >
-      <div className="w-[104px] flex-none text-right">
+      <div className="w-[86px] flex-none text-right sm:w-[104px]">
         <div
           className={cn(
             "text-[13px] font-medium tabular-nums",

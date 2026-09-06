@@ -89,14 +89,14 @@ export function SkuPicker() {
       />
 
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="relative">
+        <div className="relative w-full sm:w-auto">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-[var(--text-muted)]" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Find a product"
             aria-label="Find a product"
-            className="h-9 w-[280px] rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] pl-8 pr-3 text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:border-[var(--ring)] focus-visible:outline-none"
+            className="h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] pl-8 pr-3 text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:border-[var(--ring)] focus-visible:outline-none sm:w-[280px]"
           />
         </div>
         <span className="text-[12px] text-[var(--text-muted)]">
@@ -144,12 +144,12 @@ function SkuRow({ item, situation }: { item: CandidateItem; situation: PlanningS
   return (
     <Link
       href={`/scenario-lab?situation=${situation.id}&item=${encodeURIComponent(item.id)}`}
-      className="group grid grid-cols-[1fr_auto] items-center gap-6 py-3.5 transition-colors hover:bg-[var(--interaction-hover)]"
+      className="group flex flex-wrap items-center gap-x-6 gap-y-1.5 py-3.5 transition-colors hover:bg-[var(--interaction-hover)]"
       style={{ transitionDuration: "var(--duration-fast)" }}
     >
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <span className="truncate text-[13.5px] font-medium text-[var(--text-primary)]">
+          <span className="text-[13.5px] font-medium text-[var(--text-primary)] sm:truncate">
             {item.itemName}
           </span>
           {item.isNewThisSeason ? <NewBadge /> : null}
@@ -159,7 +159,7 @@ function SkuRow({ item, situation }: { item: CandidateItem; situation: PlanningS
             </span>
           ) : null}
         </div>
-        <div className="mt-0.5 truncate text-[11.5px] text-[var(--text-muted)]">
+        <div className="mt-0.5 text-[11.5px] text-[var(--text-muted)] sm:truncate">
           {situation.title} · {item.productFamily}
           {item.customer ? ` · ${item.customer}` : ""}
         </div>

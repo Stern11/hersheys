@@ -194,12 +194,12 @@ export function ScenarioLabShell({
       />
 
       <Page>
-        <div className="flex gap-10">
+        <div className="flex flex-col gap-8 lg:flex-row lg:gap-10">
           {/* The controls scroll inside their own column. Sharing the page's
               scroll meant reaching Line 04's hours dragged the impact panel
               off screen — and the whole point of the panel is to watch it move
               while you change something. */}
-          <aside className="sticky top-4 h-[calc(100vh-8rem)] w-[340px] flex-none overflow-y-auto overscroll-contain pr-1 scrollbar-thin">
+          <aside className="w-full flex-none lg:sticky lg:top-4 lg:h-[calc(100vh-8rem)] lg:w-[340px] lg:overflow-y-auto lg:overscroll-contain lg:pr-1 lg:scrollbar-thin">
             {activeScenario ? (
               <>
                 <FocusHeader baseline={baseline} focusItemId={focusItemId} />

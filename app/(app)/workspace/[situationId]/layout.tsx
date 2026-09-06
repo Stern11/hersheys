@@ -67,7 +67,7 @@ export default function SituationLayout({
           you scroll a long list — losing your place in the workflow is the
           fastest way to stop trusting a number you are looking at. */}
       <div className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--surface)]">
-        <div className="mx-auto w-full max-w-[1360px] px-8 pt-4">
+        <div className="mx-auto w-full max-w-[1360px] px-4 pt-3 sm:px-8 sm:pt-4">
           <Link
             href="/workspace"
             className="mb-3 inline-flex items-center gap-1.5 text-[12px] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
@@ -76,7 +76,7 @@ export default function SituationLayout({
             Planning Workspace
           </Link>
 
-          <div className="flex items-start justify-between gap-6">
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
             <div className="min-w-0">
               <div className="flex items-center gap-2.5">
                 <h1 className="text-[19px] font-semibold tracking-[-0.01em] text-[var(--text-primary)]">
@@ -84,7 +84,7 @@ export default function SituationLayout({
                 </h1>
                 <StateBadge state={situation.state} />
               </div>
-              <p className="mt-1 truncate text-[12.5px] text-[var(--text-secondary)]">
+              <p className="mt-1 text-[12.5px] text-[var(--text-secondary)] sm:truncate">
                 {situation.businessScope}
                 {situation.salesWindow
                   ? ` · Sells ${fmtDateShort(situation.salesWindow.start)} – ${fmtDateShort(situation.salesWindow.end)}`

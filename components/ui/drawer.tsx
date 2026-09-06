@@ -52,7 +52,7 @@ function DrawerContent({
         }}
         {...props}
       >
-        <div className="flex flex-none items-start justify-between gap-4 border-b border-[var(--border)] px-6 py-4">
+        <div className="flex flex-none items-start justify-between gap-3 border-b border-[var(--border)] px-4 py-3.5 sm:gap-4 sm:px-6 sm:py-4">
           <div className="min-w-0">
             {eyebrow ? (
               <div className="mb-1 text-[10.5px] font-semibold uppercase tracking-[0.09em] text-[var(--state-inferred)]">
@@ -76,7 +76,7 @@ function DrawerContent({
           </DialogPrimitive.Close>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">{children}</div>
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   );

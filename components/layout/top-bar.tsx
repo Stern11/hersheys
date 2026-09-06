@@ -13,24 +13,39 @@
  * evenly-spaced items read as three equal things, which they are not.
  */
 
-import { Moon, Sun } from "lucide-react";
+import { Menu, Moon, Sun } from "lucide-react";
 import { AiCommandBar } from "@/components/ai/ai-command-bar";
 import { useAppStore } from "@/stores/app-store";
 import { DatasetIndicator } from "./dataset-indicator";
 
-export function TopBar() {
+export function TopBar({ onOpenNav }: { onOpenNav?: () => void }) {
   const theme = useAppStore((s) => s.theme);
   const toggleTheme = useAppStore((s) => s.toggleTheme);
 
   return (
-    <header className="flex h-14 flex-none items-center gap-4 border-b border-[var(--border)] bg-[var(--surface)] px-5">
+    <header className="flex h-14 flex-none items-center gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-3 sm:gap-4 sm:px-5">
+      {/* The only way to the navigation once it stops being a column. */}
+      <button
+        type="button"
+        onClick={onOpenNav}
+        aria-label="Open navigation"
+        className="grid size-9 flex-none place-items-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--interaction-hover)] hover:text-[var(--text-primary)] lg:hidden"
+        style={{ transitionDuration: "var(--duration-fast)" }}
+      >
+        <Menu className="size-4.5" />
+      </button>
+
       <div className="min-w-0 max-w-xl flex-1">
         <AiCommandBar />
       </div>
 
       <div className="ml-auto flex flex-none items-center gap-2">
-        <DatasetIndicator />
-        <span className="h-5 w-px bg-[var(--border)]" aria-hidden />
+        {/* Which dataset you are on matters, but not enough to take a third of
+            a phone's top bar from the command input. */}
+        <span className="hidden sm:block">
+          <DatasetIndicator />
+        </span>
+        <span className="hidden h-5 w-px bg-[var(--border)] sm:block" aria-hidden />
         <button
           type="button"
           onClick={toggleTheme}

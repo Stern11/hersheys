@@ -11,7 +11,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils/cn";
 
 export function Page({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("mx-auto w-full max-w-[1360px] px-8 pb-16 pt-7", className)}>{children}</div>;
+  return <div className={cn("mx-auto w-full max-w-[1360px] px-4 pb-16 pt-5 sm:px-8 sm:pt-7", className)}>{children}</div>;
 }
 
 /**
@@ -37,7 +37,7 @@ export function PageHeader({
           {title}
         </h1>
         {subtitle ? (
-          <p className="mt-1 truncate text-[13px] leading-snug text-[var(--text-secondary)]">{subtitle}</p>
+          <p className="mt-1 text-[13px] leading-snug text-[var(--text-secondary)]">{subtitle}</p>
         ) : null}
       </div>
       {actions ? <div className="flex flex-none items-center gap-2">{actions}</div> : null}
@@ -110,7 +110,7 @@ export function HeroMetric({
       <Label>{label}</Label>
       <div
         className={cn(
-          "mt-1 text-[42px] font-semibold leading-none tracking-[-0.02em] tabular-nums",
+          "mt-1 text-[32px] font-semibold leading-none tracking-[-0.02em] tabular-nums sm:text-[42px]",
           TONE_COLOR[tone]
         )}
       >

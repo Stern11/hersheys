@@ -92,14 +92,14 @@ function Headline({ summary }: { summary: PortfolioSummary }) {
   } = summary;
 
   return (
-    <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] px-7 py-6">
+    <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] px-5 py-5 sm:px-7 sm:py-6">
       <div className="flex flex-wrap items-end justify-between gap-8">
         <div>
           <Label>Products with nothing in the plan</Label>
-          <div className="mt-1 flex items-baseline gap-3">
+          <div className="mt-1 flex flex-wrap items-baseline gap-x-3">
             <span
               className={cn(
-                "text-[52px] font-semibold leading-none tracking-[-0.025em] tabular-nums",
+                "text-[40px] font-semibold leading-none tracking-[-0.025em] tabular-nums sm:text-[52px]",
                 unrepresentedSkuCount > 0 ? "text-[var(--risk-critical)]" : "text-[var(--risk-positive)]"
               )}
             >
@@ -355,13 +355,13 @@ function SituationRow({ situation }: { situation: PlanningSituation }) {
   return (
     <Link
       href={`/workspace/${situation.id}/reconcile`}
-      className="group grid grid-cols-[1fr_auto] items-center gap-6 py-3.5 transition-colors hover:bg-[var(--interaction-hover)]"
+      className="group flex flex-wrap items-center gap-x-6 gap-y-2 py-3.5 transition-colors hover:bg-[var(--interaction-hover)]"
       style={{ transitionDuration: "var(--duration-fast)" }}
     >
       <div className="flex min-w-0 items-center gap-3">
         <StateBadge state={situation.state} />
         <div className="min-w-0">
-          <div className="truncate text-[13.5px] font-medium text-[var(--text-primary)]">
+          <div className="text-[13.5px] font-medium text-[var(--text-primary)] sm:truncate">
             {situation.title}
           </div>
           <div className="truncate text-[11.5px] text-[var(--text-muted)]">
