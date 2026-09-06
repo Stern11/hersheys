@@ -31,11 +31,14 @@ export function SkuImpactDrawer({
   candidateId,
   onClose,
   onDisposition,
+  onSelectMaterial,
 }: {
   situation: PlanningSituation;
   candidateId: string | null;
   onClose: () => void;
   onDisposition: (candidateId: string, disposition: ContributorDisposition) => void;
+  /** Opens a component's own detail over this one. */
+  onSelectMaterial: (materialId: string) => void;
 }) {
   const impact = candidateId ? skuImpact(situation, candidateId) : undefined;
 
@@ -53,7 +56,12 @@ export function SkuImpactDrawer({
             .join(" · ")}
           eyebrow={impact.candidate.derivation === "analogue" ? "No specification yet" : undefined}
         >
-          <Body impact={impact} situation={situation} onDisposition={onDisposition} />
+          <Body
+            impact={impact}
+            situation={situation}
+            onDisposition={onDisposition}
+            onSelectMaterial={onSelectMaterial}
+          />
         </DrawerContent>
       ) : null}
     </Drawer>
@@ -64,10 +72,12 @@ function Body({
   impact,
   situation,
   onDisposition,
+  onSelectMaterial,
 }: {
   impact: SkuImpact;
   situation: PlanningSituation;
   onDisposition: (candidateId: string, disposition: ContributorDisposition) => void;
+  onSelectMaterial: (materialId: string) => void;
 }) {
   const { candidate } = impact;
   const currency = situation.bridge.currency;
@@ -188,6 +198,7 @@ function Body({
             materials={impact.materials}
             today={situation.runway.today}
             productionStart={situation.productionWindow?.start}
+            onSelect={onSelectMaterial}
           />
         )}
       </section>

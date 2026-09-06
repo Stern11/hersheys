@@ -149,10 +149,13 @@ export function MaterialClockChart({
   materials,
   today,
   productionStart,
+  onSelect,
 }: {
   materials: readonly SkuMaterialNeed[];
   today: string;
   productionStart?: string;
+  /** Opens the component's own detail. */
+  onSelect?: (materialId: string) => void;
 }) {
   const clock = buildMaterialClock(materials, today, productionStart);
   if (!clock) return null;
@@ -204,13 +207,20 @@ export function MaterialClockChart({
         </div>
 
         {clock.marks.map((mark) => (
-          <ClockRow key={mark.materialId} mark={mark} ticks={clock.ticks} todayPct={clock.todayPct} />
+          <ClockRow
+            key={mark.materialId}
+            mark={mark}
+            ticks={clock.ticks}
+            todayPct={clock.todayPct}
+            onSelect={onSelect}
+          />
         ))}
       </div>
 
       <p className="mt-3 text-[11.5px] leading-relaxed text-[var(--text-muted)]">
         Each component sits on the date it has to be ordered by to arrive before production. The
-        leftmost runs out of time first; the vertical rule is today.{" "}
+        leftmost runs out of time first; the vertical rule is today. Open one for its suppliers,
+        lead-time history and what is already on order.{" "}
         <span className="text-[var(--text-secondary)]">Waits on this item</span> means nothing else
         you have carried forward justifies it yet.
       </p>
@@ -224,10 +234,12 @@ function ClockRow({
   mark,
   ticks,
   todayPct,
+  onSelect,
 }: {
   mark: MaterialClockMark;
   ticks: { label: string; pct: number }[];
   todayPct: number;
+  onSelect?: (materialId: string) => void;
 }) {
   const tone =
     mark.status === "PLAN_NOW"
@@ -237,7 +249,16 @@ function ClockRow({
         : "var(--state-unknown)";
 
   return (
-    <div className="group flex items-stretch rounded-[var(--radius-sm)] py-[3px] transition-colors hover:bg-[var(--interaction-hover)]">
+    <button
+      type="button"
+      onClick={onSelect ? () => onSelect(mark.materialId) : undefined}
+      disabled={!onSelect}
+      className={cn(
+        "group flex w-full items-stretch rounded-[var(--radius-sm)] py-[3px] text-left transition-colors",
+        onSelect && "cursor-pointer hover:bg-[var(--interaction-hover)]"
+      )}
+      style={{ transitionDuration: "var(--duration-fast)" }}
+    >
       <div className={cn(LABEL_GUTTER, "flex flex-col justify-center text-right")}>
         <span className="truncate text-[11.5px] font-medium leading-tight text-[var(--text-primary)]">
           {mark.materialName}
@@ -285,7 +306,7 @@ function ClockRow({
           {mark.standsWithoutThisItem ? "" : " · waits on this item"}
         </span>
       </div>
-    </div>
+    </button>
   );
 }
 

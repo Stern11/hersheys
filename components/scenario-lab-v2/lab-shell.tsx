@@ -29,6 +29,7 @@ import { ControlsMaterials } from "./controls-materials";
 import { ImpactPanel } from "./impact-panel";
 import { ChangesList } from "./changes-list";
 import { CommitBar } from "./commit-bar";
+import { FocusHeader } from "./focus-header";
 
 export function ScenarioLabShell({
   situationId,
@@ -195,10 +196,7 @@ export function ScenarioLabShell({
           <aside className="w-[340px] flex-none">
             {activeScenario ? (
               <>
-                <p className="mb-3 text-[12px] leading-snug text-[var(--text-muted)]">
-                  Change an assumption on the left; every figure on the right recomputes against
-                  the baseline. Nothing here touches the plan until you add it.
-                </p>
+                <FocusHeader baseline={baseline} focusItemId={focusItemId} />
                 {/* Volume first and open by default: a planner opens the lab
                     with a demand question, and leading with hours and run
                     rates answered a question they had not asked. */}

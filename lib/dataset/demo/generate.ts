@@ -254,17 +254,80 @@ const MATERIALS_BY_ID: Record<MaterialId, MaterialDef> = Object.fromEntries(
   MATERIALS.map((m) => [m.id, m])
 ) as Record<MaterialId, MaterialDef>;
 
-const MATERIAL_SUPPLIER: Record<MaterialId, { id: string; name: string }> = {
-  "MAT-COCOA": { id: "SUP-201", name: "Meridian Cocoa Trading" },
-  "MAT-SUGAR": { id: "SUP-205", name: "Union Sweetener Co" },
-  "MAT-MILK": { id: "SUP-207", name: "Dairyfield Ingredients" },
-  "MAT-FILM": { id: "SUP-118", name: "Northvale Flexibles" },
-  "MAT-FOIL": { id: "SUP-142", name: "Alumina Wrap Supply" },
-  "MAT-CORR": { id: "SUP-160", name: "Boxcraft Corrugate" },
-  "MAT-TRAY": { id: "SUP-166", name: "Formwell Molding" },
-  "MAT-TIN": { id: "SUP-171", name: "Heritage Tinware" },
-  "MAT-ARTWORK": { id: "SUP-190", name: "Studio Release Partners" },
+/**
+ * Who supplies each material, in the order a planner would name them.
+ *
+ * More than one on purpose: a component bought from a single source and one
+ * split across three behave differently under pressure, and a screen ranking
+ * suppliers has nothing to say when every material has exactly one. `share` is
+ * the split of volume, and the last entry of each is deliberately the slower
+ * one — a second source usually is.
+ */
+interface SupplierRef {
+  id: string;
+  name: string;
+  /** Share of receipts, summing to 1 within a material. */
+  share: number;
+  /** Multiplier on the material's lead-time mean for this supplier. */
+  leadTimeFactor: number;
+}
+
+const MATERIAL_SUPPLIERS: Record<MaterialId, readonly SupplierRef[]> = {
+  "MAT-COCOA": [
+    { id: "SUP-201", name: "Meridian Cocoa Trading", share: 0.62, leadTimeFactor: 0.94 },
+    { id: "SUP-202", name: "Cala Bean Importers", share: 0.26, leadTimeFactor: 1.05 },
+    { id: "SUP-203", name: "Harborlight Cocoa", share: 0.12, leadTimeFactor: 1.18 },
+  ],
+  "MAT-SUGAR": [
+    { id: "SUP-205", name: "Union Sweetener Co", share: 0.71, leadTimeFactor: 0.96 },
+    { id: "SUP-206", name: "Fieldstone Refiners", share: 0.29, leadTimeFactor: 1.12 },
+  ],
+  "MAT-MILK": [
+    { id: "SUP-207", name: "Dairyfield Ingredients", share: 0.58, leadTimeFactor: 0.95 },
+    { id: "SUP-208", name: "Pinehill Dairy Co-op", share: 0.42, leadTimeFactor: 1.08 },
+  ],
+  "MAT-FILM": [
+    { id: "SUP-118", name: "Northvale Flexibles", share: 0.55, leadTimeFactor: 0.88 },
+    { id: "SUP-119", name: "Kestrel Print & Laminate", share: 0.31, leadTimeFactor: 1.06 },
+    { id: "SUP-120", name: "Anchor Film Converting", share: 0.14, leadTimeFactor: 1.32 },
+  ],
+  "MAT-FOIL": [
+    { id: "SUP-142", name: "Alumina Wrap Supply", share: 0.78, leadTimeFactor: 0.97 },
+    { id: "SUP-143", name: "Sterling Foil Works", share: 0.22, leadTimeFactor: 1.14 },
+  ],
+  "MAT-CORR": [
+    { id: "SUP-160", name: "Boxcraft Corrugate", share: 0.64, leadTimeFactor: 0.95 },
+    { id: "SUP-161", name: "Ridgeway Packaging", share: 0.36, leadTimeFactor: 1.09 },
+  ],
+  "MAT-TRAY": [
+    { id: "SUP-166", name: "Formwell Molding", share: 0.83, leadTimeFactor: 0.98 },
+    { id: "SUP-167", name: "Claybrook Thermoform", share: 0.17, leadTimeFactor: 1.16 },
+  ],
+  "MAT-TIN": [
+    { id: "SUP-171", name: "Heritage Tinware", share: 0.6, leadTimeFactor: 0.92 },
+    { id: "SUP-172", name: "Eastgate Metal Pack", share: 0.4, leadTimeFactor: 1.13 },
+  ],
+  "MAT-ARTWORK": [{ id: "SUP-190", name: "Studio Release Partners", share: 1, leadTimeFactor: 1 }],
 };
+
+/** The primary source, which is what a BOM line names. */
+const MATERIAL_SUPPLIER: Record<MaterialId, { id: string; name: string }> = Object.fromEntries(
+  Object.entries(MATERIAL_SUPPLIERS).map(([id, list]) => [
+    id,
+    { id: list[0]?.id ?? "SUP-000", name: list[0]?.name ?? "Unknown" },
+  ])
+) as Record<MaterialId, { id: string; name: string }>;
+
+/** Picks a supplier for one receipt, by volume share. */
+function pickSupplier(rng: Rng, materialId: MaterialId): SupplierRef {
+  const list = MATERIAL_SUPPLIERS[materialId];
+  let roll = rng.float();
+  for (const supplier of list) {
+    roll -= supplier.share;
+    if (roll <= 0) return supplier;
+  }
+  return list[list.length - 1] ?? list[0]!;
+}
 
 const SPEC_FAMILY: Record<MaterialId, string> = {
   "MAT-COCOA": "cocoa-liquor-std",
@@ -1251,7 +1314,6 @@ function generateLeadTimeHistory(rng: Rng, planningNow: string): RawRow[] {
 
   for (const material of MATERIALS) {
     const profile = LEAD_TIME_PROFILE[material.id];
-    const supplier = MATERIAL_SUPPLIER[material.id];
 
     // The whole master-data story rests on the observed median sitting a long
     // way above the system assumption (V2 §28.3). With a sample this small a
@@ -1265,7 +1327,14 @@ function generateLeadTimeHistory(rng: Rng, planningNow: string): RawRow[] {
     const leadDaysByIndex = drawn.map((d) => Math.max(1, Math.round(d + shift)));
 
     for (let i = 0; i < profile.count; i++) {
-      const leadDays = leadDaysByIndex[i] ?? profile.mean;
+      // Each receipt is from a particular supplier and carries that supplier's
+      // own pace, so the ranking a planner reads is a real property of the
+      // sample rather than the same number repeated.
+      const supplier = pickSupplier(rng, material.id);
+      const leadDays = Math.max(
+        1,
+        Math.round((leadDaysByIndex[i] ?? profile.mean) * supplier.leadTimeFactor)
+      );
       const daysBack = rng.int(30, 730);
       const poMs = nowMs - daysBack * 86_400_000;
       const receiptMs = poMs + leadDays * 86_400_000;

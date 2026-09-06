@@ -11,13 +11,14 @@
 import { use, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Pencil, RotateCcw } from "lucide-react";
-import { useSituation } from "@/components/dataset/dataset-provider";
+import { useDataset, useSituation } from "@/components/dataset/dataset-provider";
 import { useDatasetStore } from "@/stores/dataset-store";
 import { BusinessToPlanBridge } from "@/components/v2/bridge";
 import { CandidateFilterBar } from "@/components/v2/candidate-filters";
 import { DataTable, type Column } from "@/components/v2/data-table";
 import { SeasonBasis } from "@/components/v2/season-basis";
 import { SkuImpactDrawer } from "@/components/v2/sku-impact-drawer";
+import { MaterialDrawer } from "@/components/v2/material-drawer";
 import { DispositionBadge, DISPOSITION_ORDER, dispositionLabel } from "@/components/v2/state-badge";
 import { HeroMetric, Label, MetricRow, Page, SectionRule } from "@/components/v2/page";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -29,6 +30,7 @@ import { fmtMoney, fmtUnits } from "@/lib/utils/format";
 export default function ReconcilePage({ params }: { params: Promise<{ situationId: string }> }) {
   const { situationId } = use(params);
   const situation = useSituation(situationId);
+  const { dataset } = useDataset();
   const setDisposition = useDatasetStore((s) => s.setDisposition);
   const resetDispositions = useDatasetStore((s) => s.resetDispositions);
   const setSeasonBasis = useDatasetStore((s) => s.setSeasonBasis);
@@ -36,6 +38,7 @@ export default function ReconcilePage({ params }: { params: Promise<{ situationI
 
   const [filters, setFilters] = useState<CandidateFilters>({});
   const [openSkuId, setOpenSkuId] = useState<string | null>(null);
+  const [openMaterialId, setOpenMaterialId] = useState<string | null>(null);
 
   const candidates = useMemo(() => situation?.candidateItems ?? [], [situation]);
   const options = useMemo(() => filterOptions(candidates), [candidates]);
@@ -249,6 +252,14 @@ export default function ReconcilePage({ params }: { params: Promise<{ situationI
         onDisposition={(candidateId, disposition) =>
           setDisposition(situationId, candidateId, disposition)
         }
+        onSelectMaterial={setOpenMaterialId}
+      />
+
+      <MaterialDrawer
+        dataset={dataset}
+        situation={situation}
+        materialId={openMaterialId}
+        onClose={() => setOpenMaterialId(null)}
       />
 
       <div className="mt-8 flex items-center justify-between border-t border-[var(--border)] pt-5">

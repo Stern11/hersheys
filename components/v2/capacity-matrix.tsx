@@ -111,20 +111,32 @@ export function CapacityMatrix({
                       onClick={() => onSelect?.(cell)}
                       onMouseEnter={() => setHover(key)}
                       onMouseLeave={() => setHover(null)}
-                      title={`${line.lineName} · ${formatMonthLabel(period)}\nFormal ${fmtPct(cell.formalUtilization)} (${fmtHours(cell.formalHours)})\nEffective ${fmtPct(cell.effectiveUtilization)} (${fmtHours(cell.effectiveHours)})\nAvailable ${fmtHours(cell.availableHours)} · target ${fmtPct(cell.targetUtilizationPct)}`}
+                      title={`${fmtPct(cell.formalUtilization)} formal → ${fmtPct(cell.effectiveUtilization)} effective of ${fmtHours(cell.availableHours)}`}
                       className={cn(
-                        "flex h-[46px] w-full flex-col items-center justify-center rounded-[var(--radius-sm)] border transition-colors",
+                        "relative flex h-[52px] w-full flex-col items-center justify-center gap-1.5 overflow-hidden rounded-[var(--radius-sm)] border transition-colors",
                         BAND_STYLE[tone],
                         isSelected
                           ? "border-[var(--interaction-selected-border)] ring-1 ring-[var(--ring)]"
                           : "border-[var(--border)]",
                         hover === key && !isSelected && "border-[var(--border-strong)]"
                       )}
+                      style={{ transitionDuration: "var(--duration-fast)" }}
                     >
-                      <span className="text-[14px] font-semibold leading-none tabular-nums">
+                      {/* How full the month is, as fill rather than as a
+                          number to convert. A grid of grey percentages made
+                          the reader do the comparison the chart should have
+                          done for them. */}
+                      <span
+                        className="pointer-events-none absolute inset-x-0 bottom-0 bg-current opacity-[0.09]"
+                        style={{ height: `${Math.min(100, cell.effectiveUtilization * 100)}%` }}
+                        aria-hidden
+                      />
+                      <span className="relative text-[15px] font-semibold leading-none tabular-nums">
                         {fmtPct(cell.effectiveUtilization)}
                       </span>
-                      <span className="mt-1 h-[3px] w-8 overflow-hidden rounded-full bg-current opacity-30">
+                      {/* The split inside that fill: solid is committed plan,
+                          the remainder is load nothing formally accounts for. */}
+                      <span className="relative h-[3px] w-9 overflow-hidden rounded-full bg-current opacity-25">
                         <span
                           className="block h-full bg-current opacity-100"
                           style={{ width: `${formalShare * 100}%` }}

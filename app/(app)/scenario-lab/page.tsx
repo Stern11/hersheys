@@ -14,7 +14,7 @@
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { ScenarioLabShell } from "@/components/scenario-lab-v2/lab-shell";
-import { SituationPicker } from "@/components/scenario-lab-v2/situation-picker";
+import { SkuPicker } from "@/components/scenario-lab-v2/sku-picker";
 import { Page } from "@/components/v2/page";
 
 function ScenarioLabRoute() {
@@ -25,7 +25,10 @@ function ScenarioLabRoute() {
   // list the planner then has to search.
   const focusItemId = searchParams.get("item") ?? undefined;
 
-  if (!situationId) return <SituationPicker />;
+  // A planner arrives thinking about a product, not a folder — so the landing
+  // view asks which product, and a programme is the fallback rather than the
+  // first question.
+  if (!situationId) return <SkuPicker />;
   return <ScenarioLabShell situationId={situationId} focusItemId={focusItemId} />;
 }
 
