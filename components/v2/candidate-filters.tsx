@@ -48,17 +48,18 @@ export function CandidateFilterBar({
   return (
     <div className="mb-4 flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative">
+        <div className="relative w-full sm:w-auto">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-[var(--text-muted)]" />
           <input
             value={filters.search ?? ""}
             onChange={(e) => set({ search: e.target.value })}
             placeholder="Find an item"
             aria-label="Find an item"
-            className="h-8 w-[190px] rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] pl-8 pr-2.5 text-[12.5px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:border-[var(--ring)] focus-visible:outline-none"
+            className="h-8 w-full rounded-[var(--radius-sm)] sm:w-[190px] border border-[var(--border)] bg-[var(--surface)] pl-8 pr-2.5 text-[12.5px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:border-[var(--ring)] focus-visible:outline-none"
           />
         </div>
 
+        <div className="grid w-full grid-cols-2 gap-2 sm:contents">
         <FilterSelect
           label="Family"
           value={filters.productFamily}
@@ -86,7 +87,7 @@ export function CandidateFilterBar({
             set({ disposition: v === ANY ? undefined : (v as CandidateFilters["disposition"]) })
           }
         >
-          <SelectTrigger className="h-8 w-[168px] text-[12.5px]">
+          <SelectTrigger className="h-8 w-full text-[12.5px] sm:w-[168px]">
             <SelectValue placeholder="Any decision" />
           </SelectTrigger>
           <SelectContent>
@@ -104,7 +105,7 @@ export function CandidateFilterBar({
           onClick={() => set({ uncoveredOnly: !filters.uncoveredOnly })}
           aria-pressed={filters.uncoveredOnly ?? false}
           className={cn(
-            "h-8 rounded-[var(--radius-sm)] border px-2.5 text-[12.5px] transition-colors",
+            "h-8 min-w-0 truncate rounded-[var(--radius-sm)] border px-2.5 text-[12.5px] transition-colors",
             filters.uncoveredOnly
               ? "border-[var(--interaction-selected-border)] bg-[var(--interaction-selected)] font-medium text-[var(--text-primary)]"
               : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
@@ -113,6 +114,7 @@ export function CandidateFilterBar({
         >
           Nothing in the plan
         </button>
+        </div>
 
         {active > 0 ? (
           <button
@@ -163,7 +165,7 @@ function FilterSelect({
   if (items.length <= 1) return null;
   return (
     <Select value={value ?? ANY} onValueChange={(v) => onChange(v === ANY ? undefined : v)}>
-      <SelectTrigger className="h-8 w-[168px] text-[12.5px]">
+      <SelectTrigger className="h-8 w-full text-[12.5px] sm:w-[168px]">
         <SelectValue placeholder={`Any ${label.toLowerCase()}`} />
       </SelectTrigger>
       <SelectContent>

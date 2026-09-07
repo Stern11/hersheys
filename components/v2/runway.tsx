@@ -17,6 +17,7 @@
 
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import type { DecisionRunway, RunwayMarker, RunwayMarkerKind } from "@/types/situation";
 import { addMonths, daysBetween, formatMonthLabel, monthKeyOf } from "@/lib/dataset/periods";
 import { fmtDateShort } from "@/lib/utils/format";
@@ -32,9 +33,29 @@ const MARKER_TOKEN: Record<RunwayMarkerKind, string> = {
   sales_end: "--state-scenario",
 };
 
-const LABEL_COL = 178;
+const LABEL_COL_WIDE = 178;
+const LABEL_COL_COMPACT = 112;
+
+/** The chart is laid out against real pixels, so it has to measure them. */
+function useMeasuredWidth() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    setWidth(el.getBoundingClientRect().width);
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setWidth(entry.contentRect.width);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return { ref, width };
+}
 
 export function RunwayTimeline({ runway }: { runway: DecisionRunway }) {
+  const { ref, width } = useMeasuredWidth();
   const milestones = runway.markers.filter((m) => m.kind !== "today");
   if (milestones.length === 0) {
     return <p className="text-[13px] text-[var(--text-muted)]">Not enough dated data to build a runway.</p>;
@@ -76,6 +97,32 @@ export function RunwayTimeline({ runway }: { runway: DecisionRunway }) {
         }
       : undefined;
 
+  // Below this the label gutter would take more than a third of the chart.
+  const compact = width > 0 && width < 560;
+  const labelCol = compact ? LABEL_COL_COMPACT : LABEL_COL_WIDE;
+  const plotWidth = Math.max(1, width - labelCol);
+  // Ticks are dropped rather than allowed to collide: a month label needs
+  // roughly 46px of its own, and an axis that overprints itself is worse than
+  // one with fewer marks on it.
+  const tickStep = Math.max(1, Math.ceil((months.length * 46) / plotWidth));
+  // The Today chip is about 100px wide and is anchored differently depending
+  // on where today falls, so the ticks it hides are not a symmetric window.
+  const chipPct = (108 / plotWidth) * 100;
+  // A tick is centred on its date, so half its own label has to clear the chip
+  // too — without this the month reads as a bare "27".
+  const tickHalfPct = (24 / plotWidth) * 100;
+  const chipAnchor = todayPct > 88 ? "right" : todayPct < 4 ? "left" : "centre";
+  const hiddenByChip = (at: number) =>
+    chipAnchor === "left"
+      ? at >= todayPct - tickHalfPct && at <= todayPct + chipPct + tickHalfPct
+      : chipAnchor === "right"
+        ? at <= todayPct + tickHalfPct && at >= todayPct - chipPct - tickHalfPct
+        : Math.abs(at - todayPct) < chipPct / 2 + tickHalfPct;
+  // A trailing detail needs somewhere to be read; under this it is only the
+  // tooltip's job.
+  const showMarkerDetail = plotWidth >= 260;
+  const runwayBandPx = runwayBand ? plotWidth * ((runwayBand.to - runwayBand.from) / 100) : 0;
+
   const windows = [
     runway.productionWindow
       ? { key: "production", label: "Production", token: "--state-formal", range: runway.productionWindow }
@@ -86,20 +133,21 @@ export function RunwayTimeline({ runway }: { runway: DecisionRunway }) {
   ].filter((w): w is { key: string; label: string; token: string; range: { start: string; end: string } } => w !== null);
 
   return (
-    <div className="w-full">
+    <div className="w-full" ref={ref}>
       <div className="relative">
         {/* Month axis. Solid hairline ticks — a dashed rule would read as a
             threshold rather than a scale. */}
-        <div className="relative h-6" style={{ marginLeft: LABEL_COL }}>
-          {months.map((month) => {
+        <div className="relative h-6" style={{ marginLeft: labelCol }}>
+          {months.map((month, i) => {
+            if (i % tickStep !== 0) return null;
             const at = pct(`${month}-01`);
             // The Today chip is wider than a month tick and outranks it, so a
             // tick it would sit on top of is dropped rather than overlapped.
-            if (Math.abs(at - todayPct) < 5) return null;
+            if (hiddenByChip(at)) return null;
             return (
               <span
                 key={month}
-                className="absolute top-0 -translate-x-1/2 text-[11px] text-[var(--text-muted)]"
+                className="absolute top-0 -translate-x-1/2 whitespace-nowrap text-[10.5px] text-[var(--text-muted)] sm:text-[11px]"
                 style={{ left: `${at}%` }}
               >
                 {formatMonthLabel(month)}
@@ -112,7 +160,12 @@ export function RunwayTimeline({ runway }: { runway: DecisionRunway }) {
             className="absolute top-0 whitespace-nowrap rounded-[3px] bg-[var(--risk-critical)] px-1.5 py-[1px] text-[10.5px] font-medium text-[var(--text-on-accent)]"
             style={{
               left: `${todayPct}%`,
-              transform: todayPct > 88 ? "translateX(-100%)" : todayPct < 4 ? "none" : "translateX(-50%)",
+              transform:
+                chipAnchor === "right"
+                  ? "translateX(-100%)"
+                  : chipAnchor === "left"
+                    ? "none"
+                    : "translateX(-50%)",
             }}
           >
             Today · {fmtDateShort(runway.today)}
@@ -123,7 +176,7 @@ export function RunwayTimeline({ runway }: { runway: DecisionRunway }) {
           {/* Everything before today is settled, so it recedes. */}
           <div
             className="pointer-events-none absolute inset-y-0 z-0 bg-[var(--surface-sunken)]"
-            style={{ left: LABEL_COL, width: `calc((100% - ${LABEL_COL}px) * ${todayPct / 100})` }}
+            style={{ left: labelCol, width: `calc((100% - ${labelCol}px) * ${todayPct / 100})` }}
             aria-hidden
           />
 
@@ -135,24 +188,32 @@ export function RunwayTimeline({ runway }: { runway: DecisionRunway }) {
             <div
               className="pointer-events-none absolute inset-y-0 z-0 flex items-start justify-center border-x border-dashed border-[var(--risk-positive)]/40 bg-[var(--risk-positive)]/[0.07]"
               style={{
-                left: `calc(${LABEL_COL}px + (100% - ${LABEL_COL}px) * ${runwayBand.from / 100})`,
-                width: `calc((100% - ${LABEL_COL}px) * ${(runwayBand.to - runwayBand.from) / 100})`,
+                left: `calc(${labelCol}px + (100% - ${labelCol}px) * ${runwayBand.from / 100})`,
+                width: `calc((100% - ${labelCol}px) * ${(runwayBand.to - runwayBand.from) / 100})`,
               }}
               aria-hidden
             >
-              <span className="mt-1 whitespace-nowrap rounded-[3px] bg-[var(--risk-positive)] px-1.5 py-[1px] text-[10.5px] font-medium text-[var(--text-on-accent)]">
-                {runwayBand.label}
-              </span>
+              {runwayBandPx >= 68 ? (
+                <span className="mt-1 whitespace-nowrap rounded-[3px] bg-[var(--risk-positive)] px-1.5 py-[1px] text-[10.5px] font-medium text-[var(--text-on-accent)]">
+                  {runwayBand.label}
+                </span>
+              ) : null}
             </div>
           ) : null}
           <div
             className="pointer-events-none absolute inset-y-0 z-20 w-px bg-[var(--risk-critical)]"
-            style={{ left: `calc(${LABEL_COL}px + (100% - ${LABEL_COL}px) * ${todayPct / 100})` }}
+            style={{ left: `calc(${labelCol}px + (100% - ${labelCol}px) * ${todayPct / 100})` }}
             aria-hidden
           />
 
           {milestones.map((marker) => (
-            <MilestoneLane key={`${marker.kind}-${marker.date}`} marker={marker} left={pct(marker.date)} />
+            <MilestoneLane
+              key={`${marker.kind}-${marker.date}`}
+              marker={marker}
+              left={pct(marker.date)}
+              labelCol={labelCol}
+              showDetail={showMarkerDetail}
+            />
           ))}
 
           {windows.map((window) => {
@@ -162,11 +223,11 @@ export function RunwayTimeline({ runway }: { runway: DecisionRunway }) {
               <div
                 key={window.key}
                 className="relative grid items-center border-t border-[var(--border)]"
-                style={{ gridTemplateColumns: `${LABEL_COL}px 1fr`, minHeight: 42 }}
+                style={{ gridTemplateColumns: `${labelCol}px 1fr`, minHeight: 42 }}
               >
-                <div className="pr-4">
-                  <div className="text-[12.5px] font-medium text-[var(--text-primary)]">{window.label}</div>
-                  <div className="text-[11px] text-[var(--text-muted)]">
+                <div className="pr-3 sm:pr-4">
+                  <div className="text-[12px] font-medium leading-tight text-[var(--text-primary)] sm:truncate sm:text-[12.5px]">{window.label}</div>
+                  <div className="text-[10.5px] leading-tight text-[var(--text-muted)] sm:text-[11px]">
                     {fmtDateShort(window.range.start)} – {fmtDateShort(window.range.end)}
                   </div>
                 </div>
@@ -193,24 +254,34 @@ export function RunwayTimeline({ runway }: { runway: DecisionRunway }) {
   );
 }
 
-function MilestoneLane({ marker, left }: { marker: RunwayMarker; left: number }) {
+function MilestoneLane({
+  marker,
+  left,
+  labelCol,
+  showDetail,
+}: {
+  marker: RunwayMarker;
+  left: number;
+  labelCol: number;
+  showDetail: boolean;
+}) {
   const overdue = marker.weeksAway < 0;
   const first = marker.isEarliestIrreversible;
   return (
     <div
       className="relative grid items-center border-t border-[var(--border)]"
-      style={{ gridTemplateColumns: `${LABEL_COL}px 1fr`, minHeight: 42 }}
+      style={{ gridTemplateColumns: `${labelCol}px 1fr`, minHeight: 42 }}
     >
-      <div className="pr-4">
+      <div className="pr-3 sm:pr-4">
         <div
           className={cn(
-            "truncate text-[12.5px] font-medium",
+            "text-[12px] font-medium leading-tight sm:truncate sm:text-[12.5px]",
             first ? "text-[var(--risk-critical)]" : "text-[var(--text-primary)]"
           )}
         >
           {marker.label}
         </div>
-        <div className="truncate text-[11px] text-[var(--text-muted)]">
+        <div className="mt-0.5 text-[10.5px] leading-tight text-[var(--text-muted)] sm:truncate sm:text-[11px]">
           {fmtDateShort(marker.date)} · {overdue ? `${Math.abs(marker.weeksAway)}w overdue` : `in ${marker.weeksAway}w`}
         </div>
       </div>
@@ -240,8 +311,11 @@ function MilestoneLane({ marker, left }: { marker: RunwayMarker; left: number })
           <span
             role="tooltip"
             className={cn(
-              "pointer-events-none absolute bottom-[calc(100%+2px)] left-1/2 w-max max-w-[280px] -translate-x-1/2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-elevated)] px-2.5 py-1.5 text-left opacity-0 shadow-lg transition-opacity",
-              "group-hover:opacity-100 group-focus-visible:opacity-100"
+              // Hidden rather than transparent: a 280px box parked off the
+              // right edge of a phone still counts as layout, and it was
+              // enough to make the whole page scroll sideways.
+              "pointer-events-none absolute bottom-[calc(100%+2px)] left-1/2 hidden w-max max-w-[min(280px,60vw)] -translate-x-1/2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-elevated)] px-2.5 py-1.5 text-left shadow-lg",
+              "group-hover:block group-focus-visible:block"
             )}
             style={{ transitionDuration: "var(--duration-fast)" }}
           >
@@ -259,7 +333,7 @@ function MilestoneLane({ marker, left }: { marker: RunwayMarker; left: number })
             ) : null}
           </span>
         </span>
-        {marker.detail ? (
+        {marker.detail && showDetail ? (
           <span
             className="absolute top-1/2 max-w-[46%] -translate-y-1/2 truncate pl-3 text-[11.5px] text-[var(--text-muted)]"
             style={{ left: `${left}%` }}

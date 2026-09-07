@@ -53,43 +53,54 @@ export function SavedScenarios({
       {sorted.map((scenario) => {
         const adjustments = countAdjustments(scenario.adjustments);
         return (
-          <div
-            key={scenario.id}
-            className="flex items-center gap-4 border-b border-[var(--border)] py-3"
-          >
-            <div className="min-w-0 flex-1">
-              <Link
-                href={`/scenario-lab?situation=${scenario.situationId}`}
-                className="truncate text-[13px] font-medium text-[var(--text-primary)] hover:underline"
+          <div key={scenario.id} className="border-b border-[var(--border)] py-3">
+            <div className="flex items-center gap-4">
+              <div className="min-w-0 flex-1">
+                <Link
+                  href={`/scenario-lab?situation=${scenario.situationId}`}
+                  className="truncate text-[13px] font-medium text-[var(--text-primary)] hover:underline"
+                >
+                  {scenario.name}
+                </Link>
+                <div className="truncate text-[11.5px] text-[var(--text-muted)]">{titleFor(scenario.situationId)}</div>
+              </div>
+
+              <div className="hidden w-[90px] flex-none text-right text-[12px] tabular-nums text-[var(--text-secondary)] sm:block">
+                {adjustments} adjustment{adjustments === 1 ? "" : "s"}
+              </div>
+
+              <div className="hidden w-[80px] flex-none text-right text-[12px] tabular-nums text-[var(--text-muted)] sm:block">
+                {fmtDateShort(scenario.updatedAt)}
+              </div>
+
+              <Input
+                value={scenario.note ?? ""}
+                onChange={(e) => setNote(scenario.id, e.target.value)}
+                placeholder="Add a note"
+                className="hidden w-48 flex-none sm:flex"
+              />
+
+              <button
+                type="button"
+                onClick={() => deleteScenario(scenario.id)}
+                title="Delete scenario"
+                className="flex-none text-[var(--text-muted)] transition-colors hover:text-[var(--risk-critical)]"
               >
-                {scenario.name}
-              </Link>
-              <div className="truncate text-[11.5px] text-[var(--text-muted)]">{titleFor(scenario.situationId)}</div>
+                <Trash2 className="size-3.5" />
+              </button>
             </div>
 
-            <div className="w-[90px] flex-none text-right text-[12px] tabular-nums text-[var(--text-secondary)]">
-              {adjustments} adjustment{adjustments === 1 ? "" : "s"}
+            {/* A 192px note field and two figure columns do not fit beside the
+                name on a phone, so they take the line underneath instead. */}
+            <div className="mt-1.5 text-[11.5px] tabular-nums text-[var(--text-muted)] sm:hidden">
+              {adjustments} adjustment{adjustments === 1 ? "" : "s"} · {fmtDateShort(scenario.updatedAt)}
             </div>
-
-            <div className="w-[80px] flex-none text-right text-[12px] tabular-nums text-[var(--text-muted)]">
-              {fmtDateShort(scenario.updatedAt)}
-            </div>
-
             <Input
               value={scenario.note ?? ""}
               onChange={(e) => setNote(scenario.id, e.target.value)}
               placeholder="Add a note"
-              className="w-48 flex-none"
+              className="mt-2 w-full sm:hidden"
             />
-
-            <button
-              type="button"
-              onClick={() => deleteScenario(scenario.id)}
-              title="Delete scenario"
-              className="flex-none text-[var(--text-muted)] transition-colors hover:text-[var(--risk-critical)]"
-            >
-              <Trash2 className="size-3.5" />
-            </button>
           </div>
         );
       })}

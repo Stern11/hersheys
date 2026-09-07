@@ -94,8 +94,8 @@ function Body({
     <div className="flex flex-col gap-7">
       {/* ---------------- the decision ---------------- */}
       <section>
-        <div className="flex items-end justify-between gap-6">
-          <div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
+          <div className="min-w-0">
             <Label>Carries forward</Label>
             <div
               className={cn(
@@ -110,7 +110,7 @@ function Body({
             </div>
           </div>
 
-          <div className="w-[196px]">
+          <div className="w-full sm:w-[196px]">
             <Label className="mb-1.5">Decision</Label>
             <Select
               value={candidate.disposition}
@@ -212,7 +212,7 @@ function Body({
       </section>
 
       {/* ---------------- next ---------------- */}
-      <div className="flex items-center justify-between gap-4 border-t border-[var(--border)] pt-4">
+      <div className="flex flex-col items-start gap-3 border-t border-[var(--border)] pt-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <p className="text-[12.5px] text-[var(--text-muted)]">
           Carrying a different number than the basis implies?
         </p>
@@ -301,8 +301,8 @@ function Bar({
 }) {
   const pct = peak > 0 ? Math.max(2, (value / peak) * 100) : 0;
   return (
-    <div className={cn("flex items-center gap-3", muted && "opacity-70")}>
-      <span className="w-[112px] flex-none truncate text-[11.5px] text-[var(--text-muted)]">
+    <div className={cn("flex items-center gap-2 sm:gap-3", muted && "opacity-70")}>
+      <span className="w-[86px] flex-none truncate text-[11.5px] text-[var(--text-muted)] sm:w-[112px]">
         {label}
       </span>
       <div className="h-[18px] flex-1 rounded-[2px] bg-[var(--chart-track)]">
@@ -318,7 +318,7 @@ function Bar({
       </div>
       <span
         className={cn(
-          "w-[76px] flex-none text-right text-[12.5px] tabular-nums",
+          "w-[64px] flex-none text-right text-[12px] tabular-nums sm:w-[76px] sm:text-[12.5px]",
           strong ? "font-semibold text-[var(--text-primary)]" : "text-[var(--text-secondary)]"
         )}
       >

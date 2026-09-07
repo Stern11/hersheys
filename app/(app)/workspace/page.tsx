@@ -35,10 +35,10 @@ export default function WorkspacePage() {
               <Link
                 key={situation.id}
                 href={`/workspace/${situation.id}/reconcile`}
-                className="group flex items-center gap-6 border-b border-[var(--border)] py-5 transition-colors hover:bg-[var(--interaction-hover)]"
+                className="group flex flex-col gap-3 border-b border-[var(--border)] py-4 transition-colors hover:bg-[var(--interaction-hover)] md:flex-row md:items-center md:gap-6 md:py-5"
               >
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
                     <span className="text-[15px] font-semibold tracking-tight text-[var(--text-primary)]">
                       {situation.title}
                     </span>
@@ -52,6 +52,7 @@ export default function WorkspacePage() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-3 gap-x-4 gap-y-3 md:contents">
                 <Stat
                   value={fmtMoney(bridge.unresolvedValue, bridge.currency)}
                   label="Unresolved"
@@ -71,8 +72,9 @@ export default function WorkspacePage() {
                   label="Runway"
                   critical={(runway.weeksOfRunway ?? 99) <= 8}
                 />
+                </div>
 
-                <ArrowRight className="size-4 flex-none text-[var(--text-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
+                <ArrowRight className="hidden size-4 flex-none text-[var(--text-muted)] opacity-0 transition-opacity group-hover:opacity-100 md:block" />
               </Link>
             );
           })}
@@ -94,7 +96,7 @@ function Stat({
   critical?: boolean;
 }) {
   return (
-    <div className="w-[104px] flex-none text-right">
+    <div className="min-w-0 text-left md:w-[104px] md:flex-none md:text-right">
       <div
         className={
           critical

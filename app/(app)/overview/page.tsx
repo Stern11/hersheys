@@ -355,16 +355,18 @@ function SituationRow({ situation }: { situation: PlanningSituation }) {
   return (
     <Link
       href={`/workspace/${situation.id}/reconcile`}
-      className="group flex flex-wrap items-center gap-x-6 gap-y-2 py-3.5 transition-colors hover:bg-[var(--interaction-hover)]"
+      className="group flex flex-col gap-2 py-3.5 transition-colors hover:bg-[var(--interaction-hover)] sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6 sm:gap-y-2"
       style={{ transitionDuration: "var(--duration-fast)" }}
     >
-      <div className="flex min-w-0 items-center gap-3">
-        <StateBadge state={situation.state} />
+      <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center">
+        <span className="flex-none">
+          <StateBadge state={situation.state} />
+        </span>
         <div className="min-w-0">
           <div className="text-[13.5px] font-medium text-[var(--text-primary)] sm:truncate">
             {situation.title}
           </div>
-          <div className="truncate text-[11.5px] text-[var(--text-muted)]">
+          <div className="text-[11.5px] leading-snug text-[var(--text-muted)] sm:truncate">
             {unrepresented} product{unrepresented === 1 ? "" : "s"} unrepresented
             {undecided > 0 ? ` · ${undecided} still to decide` : ""}
             {situation.productionWindow
@@ -374,14 +376,14 @@ function SituationRow({ situation }: { situation: PlanningSituation }) {
         </div>
       </div>
 
-      <div className="flex flex-none items-center gap-7">
+      <div className="flex flex-none items-center gap-8 pl-[76px] sm:gap-7 sm:pl-0">
         <Cell label="Unresolved" value={fmtMoney(bridge.unresolvedValue, bridge.currency)} />
         <Cell
           label="First deadline"
           value={runway.weeksOfRunway !== undefined ? fmtWeeks(runway.weeksOfRunway) : "—"}
           critical={(runway.weeksOfRunway ?? 99) <= 8}
         />
-        <ArrowRight className="size-3.5 text-[var(--text-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
+        <ArrowRight className="hidden size-3.5 text-[var(--text-muted)] opacity-0 transition-opacity group-hover:opacity-100 sm:block" />
       </div>
     </Link>
   );

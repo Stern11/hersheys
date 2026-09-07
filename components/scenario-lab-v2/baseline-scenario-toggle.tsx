@@ -29,7 +29,7 @@ export function BaselineScenarioToggle({
           disabled={disabled}
           onClick={() => onChange(m)}
           className={cn(
-            "rounded-[calc(var(--radius-sm)-2px)] px-2.5 py-1 font-medium capitalize transition-colors",
+            "flex-none whitespace-nowrap rounded-[calc(var(--radius-sm)-2px)] px-2.5 py-1 font-medium capitalize transition-colors",
             mode === m
               ? "bg-[var(--accent)] text-[var(--text-on-accent)]"
               : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",

@@ -164,7 +164,7 @@ export function ImpactPanel({
             Nothing has moved yet
           </span>
           <span className="text-[12.5px] text-[var(--text-muted)]">
-            Change an assumption on the left and only what it affects will appear here.
+            Change an assumption and only what it affects will appear here.
           </span>
         </div>
       ) : (

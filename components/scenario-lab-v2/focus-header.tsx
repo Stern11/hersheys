@@ -44,7 +44,7 @@ export function FocusHeader({
         Carries {fmtUnits(item.plannedUnits)} · {item.plannedBasis.label}
       </div>
       <p className="mt-2 text-[11.5px] leading-snug text-[var(--text-muted)]">
-        Change its volume below and the whole of {baseline.title} recomputes on the right — lines,
+        Change its volume below and the whole of {baseline.title} recomputes with it — lines,
         components and dates. Nothing touches the plan until you add it.
       </p>
     </div>

@@ -39,7 +39,7 @@ export default function StartPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--background)] px-8 py-16">
+    <div className="flex min-h-screen items-center justify-center bg-[var(--background)] px-5 py-12 sm:px-8 sm:py-16">
       <div className="w-full max-w-[860px]">
         <div className="mb-10">
           <div className="mb-5 flex items-center gap-2.5">
@@ -57,7 +57,7 @@ export default function StartPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Choice
             icon={<Sparkles className="size-4" />}
             title="Explore with demo data"
@@ -76,7 +76,7 @@ export default function StartPage() {
         </div>
 
         {hasHydrated && mode !== null ? (
-          <div className="mt-6 flex items-center gap-5 text-[13px]">
+          <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px]">
             <button
               type="button"
               onClick={() => router.push("/overview")}
@@ -122,7 +122,7 @@ function Choice({
       type="button"
       onClick={onClick}
       className={cn(
-        "group flex h-full flex-col items-start rounded-[var(--radius-lg)] border bg-[var(--surface)] p-6 text-left transition-all",
+        "group flex h-full flex-col items-start rounded-[var(--radius-lg)] border bg-[var(--surface)] p-5 text-left transition-all sm:p-6",
         primary
           ? "border-[var(--accent)]/35 hover:border-[var(--accent)] hover:shadow-[0_1px_16px_-6px_var(--accent)]"
           : "border-[var(--border)] hover:border-[var(--border-strong)]"

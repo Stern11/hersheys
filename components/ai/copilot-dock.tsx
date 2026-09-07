@@ -46,7 +46,7 @@ export function CopilotDock({ copilot, scenarioLabel }: { copilot: CopilotRuntim
   if (!open) return null;
 
   return (
-    <div className="fixed bottom-3 right-3 z-40 flex max-h-[min(70vh,640px)] w-[440px] flex-col rounded-[var(--radius-lg)] border border-[var(--border-strong)] bg-[var(--surface-elevated)] shadow-lg">
+    <div className="fixed inset-x-3 bottom-3 z-40 flex max-h-[min(70vh,640px)] flex-col sm:left-auto sm:right-3 sm:w-[440px] rounded-[var(--radius-lg)] border border-[var(--border-strong)] bg-[var(--surface-elevated)] shadow-lg">
       <div className="flex flex-none items-center gap-2 border-b border-[var(--border)] px-3 py-2">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Copilot</span>
         {scenarioLabel && <span className="min-w-0 flex-1 truncate text-[11.5px] text-[var(--text-secondary)]" title={scenarioLabel}>{scenarioLabel}</span>}

@@ -244,12 +244,12 @@ function NextDecision({
       {/* An order decision is settled here, not somewhere else. Sending the
           planner to another page to "see the items" was navigation dressed up
           as an action. */}
-      <div className="mt-5 flex flex-wrap items-center gap-2.5">
+      <div className="mt-5 flex flex-col items-stretch gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
         {decision.materialId ? (
           <button
             type="button"
             onClick={onRelease}
-            className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] bg-[var(--accent)] px-3.5 py-2 text-[13px] font-medium text-[var(--text-on-accent)] transition-opacity hover:opacity-90"
+            className="inline-flex items-center justify-center gap-1.5 rounded-[var(--radius-sm)] bg-[var(--accent)] px-3.5 py-2.5 text-[13px] font-medium text-[var(--text-on-accent)] transition-opacity hover:opacity-90 sm:py-2"
             style={{ transitionDuration: "var(--duration-fast)" }}
           >
             <Check className="size-3.5" />
@@ -261,7 +261,7 @@ function NextDecision({
         <Link
           href={decision.href}
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] px-3.5 py-2 text-[13px] font-medium transition-colors",
+            "inline-flex items-center justify-center gap-1.5 rounded-[var(--radius-sm)] px-3.5 py-2.5 text-[13px] font-medium transition-colors sm:py-2",
             decision.materialId
               ? "border border-[var(--border-strong)] text-[var(--text-primary)] hover:bg-[var(--interaction-hover)]"
               : "bg-[var(--accent)] text-[var(--text-on-accent)] hover:opacity-90"
@@ -285,94 +285,118 @@ function DecisionRow({
   onRelease: () => void;
   onUndo?: () => void;
 }) {
-  return (
-    <div
-      className={cn(
-        "group flex items-center gap-5 py-3.5 transition-colors",
-        decision.released && "opacity-70"
-      )}
-      style={{ transitionDuration: "var(--duration-fast)" }}
-    >
-      <div className="w-[86px] flex-none text-right sm:w-[104px]">
-        <div
-          className={cn(
-            "text-[13px] font-medium tabular-nums",
-            decision.urgency === "overdue"
-              ? "text-[var(--risk-critical)]"
-              : decision.urgency === "urgent"
-                ? "text-[var(--risk-warning)]"
-                : "text-[var(--text-primary)]"
-          )}
-        >
-          {decision.date ? fmtDateShort(decision.date) : "Undated"}
-        </div>
-        <div className="text-[11px] text-[var(--text-muted)]">
-          {decision.weeksAway !== undefined ? fmtWeeks(decision.weeksAway) : "—"}
-        </div>
-      </div>
-
-      <span
-        className={cn(
-          "h-8 w-[3px] flex-none rounded-full",
-          decision.urgency === "overdue"
-            ? "bg-[var(--risk-critical)]"
-            : decision.urgency === "urgent"
-              ? "bg-[var(--risk-warning)]"
-              : decision.urgency === "soon"
-                ? "bg-[var(--state-validated)]"
-                : "bg-[var(--border-strong)]"
-        )}
-      />
-
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-[13.5px] font-medium text-[var(--text-primary)]">
-          {decision.title}
-        </div>
-        <div className="truncate text-[12px] text-[var(--text-muted)]">
-          {decision.consequence}
-          {decision.drivenBy.length > 0
-            ? ` · for ${decision.drivenBy[0]}${
-                decision.drivenBy.length > 1 ? ` +${decision.drivenBy.length - 1}` : ""
-              }`
-            : ""}
-        </div>
-      </div>
-
-      {decision.released ? (
-        <span className="flex flex-none items-center gap-2.5">
-          <span className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--risk-positive)]">
-            <Check className="size-3.5" />
-            Released
-          </span>
-          {onUndo ? (
-            <button
-              type="button"
-              onClick={onUndo}
-              className="text-[11.5px] text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
-              style={{ transitionDuration: "var(--duration-fast)" }}
-            >
-              Undo
-            </button>
-          ) : null}
-        </span>
-      ) : decision.materialId ? (
+  // One definition of the row's action, placed twice: inline at the end of the
+  // row where there is room for it, and on its own line underneath where there
+  // is not. A phone cannot afford "Test it in Scenario Lab" competing with the
+  // title for the same 200px.
+  const action = decision.released ? (
+    <span className="flex flex-none items-center gap-2.5">
+      <span className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--risk-positive)]">
+        <Check className="size-3.5" />
+        Released
+      </span>
+      {onUndo ? (
         <button
           type="button"
-          onClick={onRelease}
-          className="flex-none rounded-[var(--radius-sm)] border border-[var(--border-strong)] px-2.5 py-1 text-[12px] font-medium text-[var(--text-primary)] opacity-0 transition-opacity hover:bg-[var(--interaction-hover)] focus-visible:opacity-100 group-hover:opacity-100"
+          onClick={onUndo}
+          className="text-[11.5px] text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
           style={{ transitionDuration: "var(--duration-fast)" }}
         >
-          Release
+          Undo
         </button>
-      ) : (
-        <Link
-          href={decision.href}
-          className="flex-none rounded-[var(--radius-sm)] border border-[var(--border-strong)] px-2.5 py-1 text-[12px] font-medium text-[var(--text-primary)] opacity-0 transition-opacity hover:bg-[var(--interaction-hover)] focus-visible:opacity-100 group-hover:opacity-100"
-          style={{ transitionDuration: "var(--duration-fast)" }}
-        >
-          {decision.cta}
-        </Link>
-      )}
+      ) : null}
+    </span>
+  ) : decision.materialId ? (
+    <button
+      type="button"
+      onClick={onRelease}
+      className="flex-none rounded-[var(--radius-sm)] border border-[var(--border-strong)] px-2.5 py-1 text-[12px] font-medium text-[var(--text-primary)] transition-opacity hover:bg-[var(--interaction-hover)] focus-visible:opacity-100 group-hover:opacity-100 sm:opacity-0"
+      style={{ transitionDuration: "var(--duration-fast)" }}
+    >
+      Release
+    </button>
+  ) : (
+    <Link
+      href={decision.href}
+      className="flex-none rounded-[var(--radius-sm)] border border-[var(--border-strong)] px-2.5 py-1 text-[12px] font-medium text-[var(--text-primary)] transition-opacity hover:bg-[var(--interaction-hover)] focus-visible:opacity-100 group-hover:opacity-100 sm:opacity-0"
+      style={{ transitionDuration: "var(--duration-fast)" }}
+    >
+      {decision.cta}
+    </Link>
+  );
+
+  const urgencyColor =
+    decision.urgency === "overdue"
+      ? "text-[var(--risk-critical)]"
+      : decision.urgency === "urgent"
+        ? "text-[var(--risk-warning)]"
+        : "text-[var(--text-primary)]";
+
+  return (
+    <div
+      className={cn("group py-3 transition-colors sm:py-3.5", decision.released && "opacity-70")}
+      style={{ transitionDuration: "var(--duration-fast)" }}
+    >
+      <div className="flex items-center gap-3 sm:gap-5">
+        {/* A date column costs 100px a phone does not have. Below sm: the date
+            leads the second line instead, where it is read in the same glance
+            as the lead time. */}
+        <div className="hidden w-[104px] flex-none text-right sm:block">
+          <div className={cn("text-[13px] font-medium tabular-nums", urgencyColor)}>
+            {decision.date ? fmtDateShort(decision.date) : "Undated"}
+          </div>
+          <div className="text-[11px] text-[var(--text-muted)]">
+            {decision.weeksAway !== undefined ? fmtWeeks(decision.weeksAway) : "—"}
+          </div>
+        </div>
+
+        <span
+          className={cn(
+            "h-8 w-[3px] flex-none rounded-full",
+            decision.urgency === "overdue"
+              ? "bg-[var(--risk-critical)]"
+              : decision.urgency === "urgent"
+                ? "bg-[var(--risk-warning)]"
+                : decision.urgency === "soon"
+                  ? "bg-[var(--state-validated)]"
+                  : "bg-[var(--border-strong)]"
+          )}
+        />
+
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="text-[13.5px] font-medium leading-snug text-[var(--text-primary)] sm:truncate">
+              {decision.title}
+            </div>
+            <div className="text-[12px] leading-snug text-[var(--text-muted)] sm:truncate">
+              <span className={cn("font-medium tabular-nums sm:hidden", urgencyColor)}>
+                {decision.date ? fmtDateShort(decision.date) : "Undated"}
+                {decision.weeksAway !== undefined ? ` · ${fmtWeeks(decision.weeksAway)}` : ""}
+              </span>
+              <span className="sm:hidden"> · </span>
+              {decision.consequence}
+              {decision.drivenBy.length > 0
+                ? ` · for ${decision.drivenBy[0]}${
+                    decision.drivenBy.length > 1 ? ` +${decision.drivenBy.length - 1}` : ""
+                  }`
+                : ""}
+            </div>
+          </div>
+
+          {/* On a wide screen the row otherwise trails off into empty space;
+              the quantity under decision is the figure that belongs there. */}
+          {decision.quantity && decision.quantity > 0 ? (
+            <div className="hidden w-[132px] flex-none text-right lg:block">
+              <div className="text-[13px] font-medium tabular-nums text-[var(--text-primary)]">
+                {fmtNum(Math.round(decision.quantity))}
+              </div>
+              <div className="text-[11px] text-[var(--text-muted)]">{decision.uom ?? "units"}</div>
+            </div>
+          ) : null}
+
+          <div className="flex-none">{action}</div>
+        </div>
+      </div>
     </div>
   );
 }

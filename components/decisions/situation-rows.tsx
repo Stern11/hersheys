@@ -58,10 +58,10 @@ export function SituationRows({
           <Link
             key={situation.id}
             href={`/workspace/${situation.id}/reconcile`}
-            className="group flex items-center gap-6 border-b border-[var(--border)] py-4 transition-colors hover:bg-[var(--interaction-hover)]"
+            className="group flex flex-col gap-3 border-b border-[var(--border)] py-4 transition-colors hover:bg-[var(--interaction-hover)] md:flex-row md:items-center md:gap-6"
           >
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span className="truncate text-[13.5px] font-medium text-[var(--text-primary)]">
                   {situation.title}
                 </span>
@@ -79,19 +79,21 @@ export function SituationRows({
               </div>
             </div>
 
-            <div className="w-[110px] flex-none text-right">
+            <div className="grid grid-cols-2 gap-x-4 md:contents">
+            <div className="min-w-0 text-left md:w-[110px] md:flex-none md:text-right">
               <div className="text-[14px] font-semibold tabular-nums text-[var(--text-primary)]">
                 {fmtMoney(situation.bridge.validatedValue, situation.bridge.currency)}
               </div>
               <div className="text-[11px] text-[var(--text-muted)]">validated</div>
             </div>
 
-            <div className="w-[90px] flex-none text-right">
+            <div className="min-w-0 text-left md:w-[90px] md:flex-none md:text-right">
               <div className="text-[14px] font-semibold tabular-nums text-[var(--text-primary)]">{decisions}</div>
               <div className="text-[11px] text-[var(--text-muted)]">decisions made</div>
             </div>
+            </div>
 
-            <ArrowRight className="size-4 flex-none text-[var(--text-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
+            <ArrowRight className="hidden size-4 flex-none text-[var(--text-muted)] opacity-0 transition-opacity group-hover:opacity-100 md:block" />
           </Link>
         );
       })}

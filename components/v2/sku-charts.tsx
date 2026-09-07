@@ -12,6 +12,7 @@
 
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import {
   buildLineLoadChart,
   buildMaterialClock,
@@ -157,8 +158,26 @@ export function MaterialClockChart({
   /** Opens the component's own detail. */
   onSelect?: (materialId: string) => void;
 }) {
+  // The axis has to know how much room it got: a month label needs about 34px
+  // of its own, and on a phone there is room for four of them, not fourteen.
+  const plotRef = useRef<HTMLDivElement>(null);
+  const [plotWidth, setPlotWidth] = useState(0);
+  useEffect(() => {
+    const el = plotRef.current;
+    if (!el) return;
+    setPlotWidth(el.getBoundingClientRect().width);
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setPlotWidth(entry.contentRect.width);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const clock = buildMaterialClock(materials, today, productionStart);
   if (!clock) return null;
+
+  const tickStep = Math.max(1, Math.ceil((clock.ticks.length * 34) / Math.max(1, plotWidth)));
 
   return (
     <div>
@@ -193,16 +212,18 @@ export function MaterialClockChart({
       <div className="flex flex-col gap-px">
         <div className="flex items-end">
           <div className={LABEL_GUTTER} />
-          <div className="relative h-[15px] flex-1">
-            {clock.ticks.map((tick) => (
-              <span
-                key={tick.label + tick.pct}
-                className="absolute -translate-x-1/2 text-[10.5px] text-[var(--text-muted)]"
-                style={{ left: `${tick.pct}%` }}
-              >
-                {tick.label}
-              </span>
-            ))}
+          <div ref={plotRef} className="relative h-[15px] flex-1">
+            {clock.ticks.map((tick, i) =>
+              i % tickStep === 0 ? (
+                <span
+                  key={tick.label + tick.pct}
+                  className="absolute -translate-x-1/2 whitespace-nowrap text-[10.5px] text-[var(--text-muted)]"
+                  style={{ left: `${tick.pct}%` }}
+                >
+                  {tick.label}
+                </span>
+              ) : null
+            )}
           </div>
         </div>
 
@@ -228,7 +249,7 @@ export function MaterialClockChart({
   );
 }
 
-const LABEL_GUTTER = "w-[168px] flex-none pr-3";
+const LABEL_GUTTER = "w-[108px] flex-none pr-2 sm:w-[168px] sm:pr-3";
 
 function ClockRow({
   mark,

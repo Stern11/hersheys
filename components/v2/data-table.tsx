@@ -34,6 +34,8 @@ export function DataTable<T>({
   empty,
   initialSort,
   maxHeight,
+  minWidth = 720,
+  card,
 }: {
   rows: readonly T[];
   columns: Column<T>[];
@@ -45,6 +47,18 @@ export function DataTable<T>({
   empty?: ReactNode;
   initialSort?: { key: string; direction: "asc" | "desc" };
   maxHeight?: number;
+  /**
+   * The width below which the columns stop being readable. Under it the
+   * wrapper scrolls sideways rather than letting every cell crush itself into
+   * an ellipsis — which is what a phone-width table does otherwise.
+   */
+  minWidth?: number;
+  /**
+   * The same row read as a stack, used below `sm`. Five columns in 358px is a
+   * sideways scroll in which the control the screen exists for is the part
+   * that falls off the edge; given this, the table is simply not shown there.
+   */
+  card?: (row: T) => ReactNode;
 }) {
   const [sort, setSort] = useState(initialSort);
 
@@ -75,11 +89,38 @@ export function DataTable<T>({
   }
 
   return (
-    <div
-      className={cn("overflow-x-auto", maxHeight !== undefined && "overflow-y-auto")}
-      style={maxHeight !== undefined ? { maxHeight } : undefined}
-    >
-      <table className="w-full border-collapse text-[13px]">
+    <>
+      {card ? (
+        <div className="divide-y divide-[var(--border)] border-t border-[var(--border-strong)] sm:hidden">
+          {sorted.map((row) => {
+            const active = isRowActive?.(row) ?? false;
+            return (
+              <div
+                key={rowKey(row)}
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
+                className={cn(
+                  "py-3",
+                  onRowClick && "cursor-pointer",
+                  active && "bg-[var(--interaction-selected)]",
+                  rowClassName?.(row)
+                )}
+              >
+                {card(row)}
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+
+      <div
+        className={cn(
+          "overflow-x-auto",
+          maxHeight !== undefined && "overflow-y-auto",
+          card && "hidden sm:block"
+        )}
+        style={maxHeight !== undefined ? { maxHeight } : undefined}
+      >
+      <table className="w-full border-collapse text-[13px]" style={{ minWidth }}>
         <thead className="sticky top-0 z-10 bg-[var(--background)]">
           <tr className="border-b border-[var(--border-strong)]">
             {columns.map((column, index) => (
@@ -151,6 +192,7 @@ export function DataTable<T>({
           })}
         </tbody>
       </table>
-    </div>
+      </div>
+    </>
   );
 }

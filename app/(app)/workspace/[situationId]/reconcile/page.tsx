@@ -262,6 +262,62 @@ export default function ReconcilePage({ params }: { params: Promise<{ situationI
         isRowActive={(row) => row.id === openSkuId}
         rowClassName={(row) => (isSettled(row) ? undefined : "bg-[var(--surface)]")}
         initialSort={{ key: "planned", direction: "desc" }}
+        card={(row) => {
+          const cover = coverageOf(row);
+          return (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="text-[13px] font-medium text-[var(--text-primary)]">
+                      {row.itemName}
+                    </span>
+                    {row.isNewThisSeason ? <NewBadge /> : null}
+                  </div>
+                  <div className="mt-0.5 text-[11.5px] text-[var(--text-muted)]">
+                    {row.productFamily}
+                    {row.customer ? ` · ${row.customer}` : ""}
+                  </div>
+                </div>
+                <div className="flex-none text-right">
+                  <div className="text-[13px] font-medium tabular-nums text-[var(--text-primary)]">
+                    {fmtUnits(row.plannedUnits)}
+                  </div>
+                  <div className="text-[11px] text-[var(--text-muted)]">carries forward</div>
+                </div>
+              </div>
+
+              <div className="text-[11.5px] leading-snug text-[var(--text-muted)]">
+                {cover ? (
+                  <>
+                    In the plan: {cover.name} ·{" "}
+                    <span className="tabular-nums">
+                      {fmtUnits(row.actualUnits)} → {fmtUnits(cover.planned)}
+                    </span>{" "}
+                    <span
+                      className={
+                        cover.aligned ? "text-[var(--text-muted)]" : "font-medium text-[var(--risk-warning)]"
+                      }
+                    >
+                      ({cover.delta > 0 ? "+" : ""}
+                      {Math.round(cover.delta * 100)}%)
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-[var(--risk-warning)]">Nothing in the plan covers it</span>
+                )}
+              </div>
+
+              <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} role="presentation">
+                <DecisionCell
+                  candidate={row}
+                  settled={isSettled(row)}
+                  onChange={(value) => setDisposition(situationId, row.id, value)}
+                />
+              </div>
+            </div>
+          );
+        }}
         empty={
           candidates.length === 0
             ? `No prior-season items comparable to ${situation.title} were found, so nothing can be offered as an explanation.`
@@ -359,7 +415,7 @@ function DecisionCell({
         <button
           type="button"
           onClick={() => setUnlocked(true)}
-          className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] px-1.5 py-0.5 text-[11.5px] text-[var(--text-muted)] opacity-0 transition-opacity hover:bg-[var(--interaction-hover)] hover:text-[var(--text-primary)] focus-visible:opacity-100 group-hover:opacity-100 [tr:hover_&]:opacity-100"
+          className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border)] px-1.5 py-0.5 text-[11.5px] text-[var(--text-muted)] transition-opacity hover:bg-[var(--interaction-hover)] hover:text-[var(--text-primary)] focus-visible:opacity-100 group-hover:opacity-100 sm:border-transparent sm:opacity-0 [tr:hover_&]:opacity-100"
         >
           <Pencil className="size-3" />
           Change

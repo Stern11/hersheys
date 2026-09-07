@@ -40,6 +40,16 @@ const BAND_STYLE: Record<ReturnType<typeof band>, string> = {
   breach: "bg-[var(--risk-critical)] text-[var(--text-on-accent)]",
 };
 
+/**
+ * On a phone the label column cannot afford "Line 03 — High-Speed Bagging".
+ * The line number alone identifies the row; the descriptive half comes back
+ * as soon as there is room for it.
+ */
+function shortLineName(name: string): string {
+  const [head] = name.split(/\s+[—–-]\s+/);
+  return head?.trim() || name;
+}
+
 export function CapacityMatrix({
   exposure,
   selected,
@@ -55,13 +65,12 @@ export function CapacityMatrix({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full table-fixed border-collapse text-[12px]">
+      <table className="w-full border-collapse text-[12px]">
         <thead>
           <tr>
             <th
               scope="col"
-              style={{ width: 210 }}
-              className="sticky left-0 z-10 bg-[var(--background)] pb-2 pr-4 text-left text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-muted)]"
+              className="sticky left-0 z-10 w-[92px] bg-[var(--background)] pb-2 pr-2 text-left text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-muted)] sm:w-[210px] sm:pr-4"
             >
               Line
             </th>
@@ -69,7 +78,7 @@ export function CapacityMatrix({
               <th
                 key={period}
                 scope="col"
-                className="pb-2 text-center text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-muted)]"
+                className="whitespace-nowrap px-0.5 pb-2 text-center text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--text-muted)] sm:text-[11px]"
               >
                 {formatMonthLabel(period)}
               </th>
@@ -81,16 +90,17 @@ export function CapacityMatrix({
             <tr key={line.lineId}>
               <th
                 scope="row"
-                className="sticky left-0 z-10 whitespace-nowrap bg-[var(--background)] py-1 pr-4 text-left text-[12.5px] font-medium text-[var(--text-primary)]"
+                className="sticky left-0 z-10 whitespace-nowrap bg-[var(--background)] py-1 pr-2 text-left text-[12px] font-medium text-[var(--text-primary)] sm:pr-4 sm:text-[12.5px]"
               >
-                {line.lineName}
+                <span className="sm:hidden">{shortLineName(line.lineName)}</span>
+                <span className="hidden sm:inline">{line.lineName}</span>
               </th>
               {exposure.periods.map((period) => {
                 const cell = cellAt(line.lineId, period);
                 if (!cell) {
                   return (
                     <td key={period} className="p-0.5">
-                      <div className="flex h-[46px] items-center justify-center rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] text-[11px] text-[var(--text-muted)]">
+                      <div className="flex h-[44px] min-w-[52px] items-center justify-center rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] text-[11px] text-[var(--text-muted)] sm:h-[46px] sm:min-w-[64px]">
                         —
                       </div>
                     </td>
@@ -113,7 +123,7 @@ export function CapacityMatrix({
                       onMouseLeave={() => setHover(null)}
                       title={`${fmtPct(cell.formalUtilization)} formal → ${fmtPct(cell.effectiveUtilization)} effective of ${fmtHours(cell.availableHours)}`}
                       className={cn(
-                        "relative flex h-[52px] w-full flex-col items-center justify-center gap-1.5 overflow-hidden rounded-[var(--radius-sm)] border transition-colors",
+                        "relative flex h-[48px] w-full min-w-[52px] flex-col items-center justify-center gap-1.5 overflow-hidden rounded-[var(--radius-sm)] border transition-colors sm:h-[52px] sm:min-w-[64px]",
                         BAND_STYLE[tone],
                         isSelected
                           ? "border-[var(--interaction-selected-border)] ring-1 ring-[var(--ring)]"
@@ -131,12 +141,12 @@ export function CapacityMatrix({
                         style={{ height: `${Math.min(100, cell.effectiveUtilization * 100)}%` }}
                         aria-hidden
                       />
-                      <span className="relative text-[15px] font-semibold leading-none tabular-nums">
+                      <span className="relative text-[13px] font-semibold leading-none tabular-nums sm:text-[15px]">
                         {fmtPct(cell.effectiveUtilization)}
                       </span>
                       {/* The split inside that fill: solid is committed plan,
                           the remainder is load nothing formally accounts for. */}
-                      <span className="relative h-[3px] w-9 overflow-hidden rounded-full bg-current opacity-25">
+                      <span className="relative h-[3px] w-6 overflow-hidden rounded-full bg-current opacity-25 sm:w-9">
                         <span
                           className="block h-full bg-current opacity-100"
                           style={{ width: `${formalShare * 100}%` }}

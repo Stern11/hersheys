@@ -57,7 +57,7 @@ export function ScenarioToolbar({
     <div className="border-b border-[var(--border)] bg-[var(--surface)]">
       <div className="mx-auto flex w-full max-w-[1360px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-8 sm:py-3.5">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <div className="flex min-w-0 items-center gap-1.5 text-[12px] text-[var(--text-muted)]">
+          <div className="hidden min-w-0 items-center gap-1.5 text-[12px] text-[var(--text-muted)] sm:flex">
             <FlaskConical className="size-3.5 flex-none" />
             <span className="flex-none">Scenario Lab</span>
             <span className="flex-none">·</span>
@@ -71,7 +71,7 @@ export function ScenarioToolbar({
           <BaselineScenarioToggle mode={viewMode} onChange={onViewModeChange} />
         </div>
 
-        <div className="flex flex-none flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-none">
           {!activeScenario ? (
             <Button size="sm" onClick={onCreate}>
               <Plus className="size-3.5" />
@@ -81,7 +81,7 @@ export function ScenarioToolbar({
             <>
               {scenarios.length > 1 ? (
                 <Select value={activeScenario.id} onValueChange={onSelect}>
-                  <SelectTrigger className="w-[160px]">
+                  <SelectTrigger className="w-[132px] sm:w-[160px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -105,24 +105,31 @@ export function ScenarioToolbar({
                 onKeyDown={(e) => {
                   if (e.key === "Enter") (e.target as HTMLInputElement).blur();
                 }}
-                className="h-7 w-[150px] flex-none rounded-[var(--radius-sm)] border border-transparent bg-transparent px-1.5 text-[13px] font-medium text-[var(--text-primary)] outline-none transition-colors hover:border-[var(--border)] focus:border-[var(--border-strong)] focus:bg-[var(--surface-sunken)]"
+                className="h-7 min-w-[110px] flex-1 rounded-[var(--radius-sm)] sm:w-[150px] sm:flex-none border border-transparent bg-transparent px-1.5 text-[13px] font-medium text-[var(--text-primary)] outline-none transition-colors hover:border-[var(--border)] focus:border-[var(--border-strong)] focus:bg-[var(--surface-sunken)]"
               />
 
               <span className="flex-none whitespace-nowrap text-[12px] text-[var(--text-muted)]">
                 {changeCount} change{changeCount === 1 ? "" : "s"}
               </span>
 
-              <Button variant="ghost" size="sm" onClick={onDuplicate}>
+              <Button variant="ghost" size="sm" onClick={onDuplicate} title="Duplicate" aria-label="Duplicate scenario">
                 <Copy className="size-3.5" />
-                Duplicate
+                <span className="hidden sm:inline">Duplicate</span>
               </Button>
-              <Button variant="ghost" size="sm" onClick={onResetAll} disabled={changeCount === 0}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onResetAll}
+                disabled={changeCount === 0}
+                title="Reset all"
+                aria-label="Reset all changes"
+              >
                 <RotateCcw className="size-3.5" />
-                Reset all
+                <span className="hidden sm:inline">Reset all</span>
               </Button>
-              <Button variant="ghost" size="sm" onClick={onDelete}>
+              <Button variant="ghost" size="sm" onClick={onDelete} title="Delete" aria-label="Delete scenario">
                 <Trash2 className="size-3.5" />
-                Delete
+                <span className="hidden sm:inline">Delete</span>
               </Button>
             </>
           )}

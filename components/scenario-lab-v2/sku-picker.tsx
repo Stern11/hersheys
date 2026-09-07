@@ -147,8 +147,10 @@ function SkuRow({ item, situation }: { item: CandidateItem; situation: PlanningS
       className="group flex flex-wrap items-center gap-x-6 gap-y-1.5 py-3.5 transition-colors hover:bg-[var(--interaction-hover)]"
       style={{ transitionDuration: "var(--duration-fast)" }}
     >
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
+      {/* flex-1, or the figure block sits wherever the name happens to end and
+          the rest of a wide row is empty. */}
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-[13.5px] font-medium text-[var(--text-primary)] sm:truncate">
             {item.itemName}
           </span>

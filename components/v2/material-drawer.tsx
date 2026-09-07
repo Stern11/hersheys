@@ -151,7 +151,7 @@ function Body({ detail }: { detail: MaterialDetail }) {
                     {Math.round(supplier.worstLeadTimeDays)}d
                   </div>
                 </div>
-                <div className="w-[124px] flex-none">
+                <div className="w-[72px] flex-none sm:w-[124px]">
                   <div className="h-[6px] rounded-full bg-[var(--chart-track)]">
                     <div
                       className="h-full rounded-full bg-[var(--state-historical)]"
@@ -306,10 +306,10 @@ function LeadTime({ detail }: { detail: MaterialDetail }) {
     <div>
       <div className="flex flex-col gap-1.5">
         {rows.map((row) => (
-          <div key={row.label} className="flex items-center gap-3">
+          <div key={row.label} className="flex items-center gap-2 sm:gap-3">
             <span
               className={cn(
-                "w-[132px] flex-none text-[11.5px]",
+                "w-[96px] flex-none text-[11.5px] sm:w-[132px]",
                 row.active
                   ? "font-medium text-[var(--text-primary)]"
                   : "text-[var(--text-muted)]"
