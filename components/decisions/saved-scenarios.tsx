@@ -10,18 +10,9 @@ import Link from "next/link";
 import { Trash2 } from "lucide-react";
 import { useSituationScenarioStore } from "@/stores/situation-scenario-store";
 import { Input } from "@/components/ui/input";
-import type { PlanningSituation, ScenarioAdjustments, SituationScenario } from "@/types/situation";
+import type { PlanningSituation, SituationScenario } from "@/types/situation";
+import { countAdjustments } from "@/lib/situations/scenario";
 import { fmtDateShort } from "@/lib/utils/format";
-
-function countAdjustments(a: ScenarioAdjustments): number {
-  return (
-    Object.keys(a.availableHours).length +
-    Object.keys(a.targetUtilization).length +
-    Object.keys(a.runRate).length +
-    Object.keys(a.allocation).length +
-    Object.keys(a.leadTimeDays).length
-  );
-}
 
 export function SavedScenarios({
   scenarios,

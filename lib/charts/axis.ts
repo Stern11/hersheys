@@ -1,6 +1,5 @@
 /**
- * Pure axis/scale geometry for the hand-built charts in `components/charts/*`
- * and the two planning charts that own their own SVG/CSS geometry.
+ * Pure axis/scale geometry for the hand-built SKU charts (`lib/charts/sku-charts.ts`).
  *
  * These functions exist because the charts are hand-positioned: without a
  * shared, unit-tested scale a bar's pixel length and the number printed next

@@ -1,12 +1,10 @@
 /**
  * Types for the V2 copilot (V2 §54).
  *
- * The V1 copilot (`lib/ai-copilot/*`) is grounded in `calculateScenario()`
- * over the synthetic-data model — a different product generation. This
- * module is grounded in `PlanningSituation`, the V2 planning object built by
- * `lib/situations/build.ts::buildSituations()`. The two never share data: a
- * reply here is composed only from fields already on a `PlanningSituation`,
- * so it can never contradict what the V2 screens show.
+ * Grounded in `PlanningSituation`, the planning object built by
+ * `lib/situations/build.ts::buildSituations()`. A reply here is composed only
+ * from fields already on a `PlanningSituation`, so it can never contradict
+ * what the screens show.
  *
  * Pure types only — see `respond.ts` for the engine.
  */

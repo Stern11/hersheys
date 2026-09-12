@@ -224,6 +224,7 @@ export function countAdjustments(adjustments: ScenarioAdjustments): number {
     Object.keys(adjustments.runRate).length +
     Object.keys(adjustments.allocation).length +
     Object.keys(adjustments.leadTimeDays).length +
-    Object.keys(adjustments.volumeUnits ?? {}).length
+    Object.keys(adjustments.volumeUnits ?? {}).length +
+    Object.keys(adjustments.analogueWeights ?? {}).length
   );
 }

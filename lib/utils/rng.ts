@@ -2,7 +2,7 @@
  * Deterministic PRNG for synthetic data generation. The same seed always
  * produces the same sequence — required so every reload/build/test run
  * reconciles to identical numbers across every page (PRD §27.6).
- * Never use Math.random() in data/synthetic/**.
+ * Never use Math.random() in data generation (lib/dataset/demo/**).
  */
 function mulberry32(seed: number) {
   return function next() {

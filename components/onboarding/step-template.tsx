@@ -17,7 +17,7 @@ export function StepTemplate({ onContinue }: { onContinue: () => void }) {
         Download the planning template, fill in your data on each sheet, then upload the file back here.
       </p>
 
-      <div className="mt-6 flex items-center gap-3">
+      <div className="mt-6 flex flex-wrap items-center gap-3">
         <Button asChild size="lg">
           <a href="/api/planning-template" download>
             <Download className="size-4" />
@@ -29,14 +29,14 @@ export function StepTemplate({ onContinue }: { onContinue: () => void }) {
         </Button>
       </div>
 
-      <div className="mt-8 overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)]">
+      <div className="mt-8 overflow-x-auto rounded-[var(--radius-md)] border border-[var(--border)]">
         <table className="w-full border-collapse text-[13px]">
           <thead>
             <tr className="border-b border-[var(--border)] bg-[var(--surface-sunken)]">
               <th className="px-3 py-2 text-left text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-muted)]">
                 Sheet
               </th>
-              <th className="px-3 py-2 text-left text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-muted)]">
+              <th className="hidden px-3 py-2 text-left text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-muted)] sm:table-cell">
                 &nbsp;
               </th>
               <th className="px-3 py-2 text-left text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-muted)]">
@@ -47,10 +47,17 @@ export function StepTemplate({ onContinue }: { onContinue: () => void }) {
           <tbody>
             {WORKBOOK_SCHEMA.map((sheet) => (
               <tr key={sheet.name} className="border-b border-[var(--border)] last:border-b-0">
-                <td className="whitespace-nowrap px-3 py-2 font-medium text-[var(--text-primary)]">
+                <td className="whitespace-nowrap px-3 py-2 align-top font-medium text-[var(--text-primary)] sm:align-middle">
                   {sheet.name}
+                  {/* On a phone the badge sits under the name rather than in
+                      its own column, which left Purpose two words wide. */}
+                  <div className="mt-1 sm:hidden">
+                    <Badge variant={sheet.required ? "formal" : "neutral"}>
+                      {sheet.required ? "Required" : "Optional"}
+                    </Badge>
+                  </div>
                 </td>
-                <td className="px-3 py-2">
+                <td className="hidden px-3 py-2 sm:table-cell">
                   <Badge variant={sheet.required ? "formal" : "neutral"}>
                     {sheet.required ? "Required" : "Optional"}
                   </Badge>

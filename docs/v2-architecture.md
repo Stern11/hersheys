@@ -62,17 +62,17 @@ Only `carry_forward` bears load. `already_represented` is already in the formal
 plan, `intentional_exit` is deliberately gone, and `under_review` has not been
 decided — counting any of them would overstate the plan.
 
-## What is preserved from V1
+## What remains from V1
 
-The V1 planning engine is intact and still tested: `lib/planning-engine/*`
-(including the pure `calculateScenario()`), `lib/charts/*`, `lib/ai-copilot/*`,
-`lib/ai-tools/*`, `lib/methodology/*`, `stores/scenario-store.ts`,
-`data/synthetic/*`. The V2 workflow does not route through it, but
-`reconcileProvisional()` from `lib/planning-engine/reconciliation.ts` is reused
-directly by the Decisions page.
+One module: `lib/planning-engine/reconciliation.ts`, whose
+`reconcileProvisional()` the Decisions page calls directly to prove that
+matched provisional load is replaced rather than added.
 
-Removed: the `/gaps` routes and their bespoke workspace components — the
-Planning Workspace replaces them.
+Everything else from V1 — the `/gaps` routes, the V1 Scenario Lab, the
+`data/synthetic/*` input adapter, the rest of `lib/planning-engine/*`, and the
+AI tool/copilot layer built on them — was removed once nothing in the running
+app could reach it. The "Ask Heizen" bar answers through `lib/copilot-v2/*`,
+grounded in the same `PlanningSituation`s the page on screen renders.
 
 ## Rules that still hold
 

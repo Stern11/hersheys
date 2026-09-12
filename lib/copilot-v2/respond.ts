@@ -3,10 +3,8 @@
  *
  * Regex/keyword matching only — no network call, no LLM, no randomness. Every
  * reply is built from fields already present on the `PlanningSituation`
- * objects passed in through `CopilotContext`. This module never imports
- * `data/synthetic/*` and never calls `detectPlanningGaps()`: the V1 engine
- * (`lib/ai-copilot/*`) is a different product generation and the two must
- * never be able to disagree about a number, because they read different data.
+ * objects passed in through `CopilotContext`, so a reply can never disagree
+ * with a number already on screen.
  *
  * If a `PlanningSituation` does not carry a number (no capacity data
  * uploaded, no BOM, no runway marker), the reply says so via `unavailable`

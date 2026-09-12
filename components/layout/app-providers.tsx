@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SessionProvider } from "next-auth/react";
 import { useSessionStore } from "@/stores/session-store";
 import { useAppStore, THEME_STORAGE_KEY } from "@/stores/app-store";
-import { useScenarioStore } from "@/stores/scenario-store";
 import { useDatasetStore } from "@/stores/dataset-store";
 import { useSituationScenarioStore } from "@/stores/situation-scenario-store";
 import { DatasetProvider } from "@/components/dataset/dataset-provider";
@@ -21,7 +19,6 @@ import { DatasetProvider } from "@/components/dataset/dataset-provider";
 const THEME_BOOT_SCRIPT = `(function(){try{var t=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});if(!t){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}document.documentElement.classList.toggle("dark",t==="dark");}catch(e){}})();`;
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient());
   const initTheme = useAppStore((s) => s.initTheme);
 
   useEffect(() => {
@@ -34,8 +31,6 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     // module singletons, so a client-side route change already kept them, but
     // any full document load started from seed data every time — and Save,
     // which only flipped an in-memory status, was thrown away with it.
-    void useAppStore.persist.rehydrate();
-    void useScenarioStore.persist.rehydrate();
     // The dataset store persists to localStorage rather than the session, so
     // the planner's chosen mode survives a refresh instead of sending them
     // back to the first-run screen.
@@ -52,12 +47,10 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     // `SessionProvider` outermost: it is the only thing here that can be
     // waiting on the network, and everything below reads identity through it.
     <SessionProvider>
-      <QueryClientProvider client={queryClient}>
-        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
-        <TooltipProvider>
-          <DatasetProvider>{children}</DatasetProvider>
-        </TooltipProvider>
-      </QueryClientProvider>
+      <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+      <TooltipProvider>
+        <DatasetProvider>{children}</DatasetProvider>
+      </TooltipProvider>
     </SessionProvider>
   );
 }

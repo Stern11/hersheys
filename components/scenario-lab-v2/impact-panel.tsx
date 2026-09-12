@@ -300,7 +300,7 @@ function LinePicker({
     <select
       value={value ?? ""}
       onChange={(e) => onChange(e.target.value)}
-      className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-[12px] text-[var(--text-primary)]"
+      className="min-w-0 max-w-full truncate rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-[12px] text-[var(--text-primary)]"
     >
       {lines.map((l) => (
         <option key={l.lineId} value={l.lineId}>

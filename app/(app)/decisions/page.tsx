@@ -16,6 +16,7 @@ import { HeroMetric, MetricRow, Page, PageHeader, SectionRule } from "@/componen
 import { SituationRows } from "@/components/decisions/situation-rows";
 import { DecisionsTable } from "@/components/decisions/decisions-table";
 import { SavedScenarios } from "@/components/decisions/saved-scenarios";
+import { countAdjustments } from "@/lib/situations/scenario";
 import { ReconciliationPanel } from "@/components/decisions/reconciliation-panel";
 import { fmtMoney, fmtNum } from "@/lib/utils/format";
 
@@ -23,7 +24,18 @@ export default function DecisionsPage() {
   const { situations } = useDataset();
   const overridesBySituation = useDatasetStore((s) => s.overridesBySituation);
   const scenariosById = useSituationScenarioStore((s) => s.scenarios);
-  const scenarios = useMemo(() => Object.values(scenariosById), [scenariosById]);
+  // Scenario Lab opens every situation on a fresh "Scenario 1" so the
+  // planner never lands on an empty column. Counting that untouched scenario
+  // as "saved" here made every visited situation look like a decision had
+  // been worked through — so only scenarios that change something, or carry
+  // a note, are listed and counted.
+  const scenarios = useMemo(
+    () =>
+      Object.values(scenariosById).filter(
+        (s) => countAdjustments(s.adjustments) > 0 || Boolean(s.note?.trim())
+      ),
+    [scenariosById]
+  );
 
   const currency = situations[0]?.bridge.currency ?? "USD";
 

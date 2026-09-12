@@ -35,6 +35,9 @@ export function UploadStepper({ steps, current }: { steps: UploadStep[]; current
               <span
                 className={cn(
                   "whitespace-nowrap text-[13px] font-medium",
+                  // Only the current step is named on a phone; the others are
+                  // numbered circles, which is all "how far along am I" needs.
+                  state !== "current" && "hidden sm:inline",
                   state === "upcoming" ? "text-[var(--text-muted)]" : "text-[var(--text-primary)]"
                 )}
               >
@@ -44,7 +47,7 @@ export function UploadStepper({ steps, current }: { steps: UploadStep[]; current
             {i < steps.length - 1 ? (
               <span
                 className={cn(
-                  "mx-3 h-px flex-1",
+                  "mx-2 h-px flex-1 sm:mx-3",
                   step.id < current ? "bg-[var(--accent)]" : "bg-[var(--border)]"
                 )}
               />

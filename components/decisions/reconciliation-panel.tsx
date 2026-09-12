@@ -78,13 +78,22 @@ function ReconciliationDemo({ situation }: { situation: PlanningSituation }) {
       <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
         <div>
           <Label className="mb-1.5">Formal demand arrives</Label>
-          <Input
-            type="number"
-            min={0}
-            value={formalizedAmount}
-            onChange={(e) => setFormalizedAmount(Math.max(0, Math.round(Number(e.target.value) || 0)))}
-            className="w-36"
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              min={0}
+              value={formalizedAmount}
+              onChange={(e) => setFormalizedAmount(Math.max(0, Math.round(Number(e.target.value) || 0)))}
+              aria-label={`Formal demand arriving, in ${currency}`}
+              className="w-36"
+            />
+            {/* A bare 123970214 says nothing about what it counts — this is
+                value, in the dataset's currency, the same figure the bars
+                below are drawn in. */}
+            <span className="whitespace-nowrap text-[11.5px] tabular-nums text-[var(--text-muted)]">
+              {currency} · {fmtMoney(formalizedAmount, currency)}
+            </span>
+          </div>
         </div>
         <div>
           <Label className="mb-1.5">Match confidence</Label>

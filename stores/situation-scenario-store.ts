@@ -5,9 +5,6 @@
  * recomputed by applying these adjustments to a copy of the dataset and
  * re-running `buildSituations`, so baseline and scenario can never drift and
  * the uploaded workbook is never touched (V2 §53).
- *
- * The V1 `stores/scenario-store.ts` is left intact: it drives the older
- * synthetic-data scenario engine, which is still exercised by its own tests.
  */
 
 import { create } from "zustand";

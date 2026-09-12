@@ -57,10 +57,10 @@ export function ScenarioToolbar({
     <div className="border-b border-[var(--border)] bg-[var(--surface)]">
       <div className="mx-auto flex w-full max-w-[1360px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-8 sm:py-3.5">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <div className="hidden min-w-0 items-center gap-1.5 text-[12px] text-[var(--text-muted)] sm:flex">
-            <FlaskConical className="size-3.5 flex-none" />
-            <span className="flex-none">Scenario Lab</span>
-            <span className="flex-none">·</span>
+          <div className="flex min-w-0 items-center gap-1.5 text-[12px] text-[var(--text-muted)]">
+            <FlaskConical className="hidden size-3.5 flex-none sm:block" />
+            <span className="hidden flex-none sm:inline">Scenario Lab</span>
+            <span className="hidden flex-none sm:inline">·</span>
             <Link
               href={`/workspace/${situationId}/reconcile`}
               className="truncate font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"

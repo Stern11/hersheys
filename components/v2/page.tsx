@@ -57,7 +57,7 @@ export function PageHeader({
  */
 export function SectionRule({ label, action }: { label: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 pb-2 pt-7 first:pt-0">
+    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-2 pb-2 pt-7 first:pt-0">
       <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">
         {label}
       </span>

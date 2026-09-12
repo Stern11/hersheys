@@ -4,7 +4,7 @@
 /* ==========================================================================
    Heizen Planning Gap Intelligence — semantic design tokens
    Enterprise planning aesthetic: neutral surfaces, subtle borders, strong
-   typography, restrained accent use. See docs/ui-principles.md.
+   typography, restrained accent use. See the Visual rules in CLAUDE.md.
 
    Two color dimensions are kept structurally separate and must never be
    reused for each other:
@@ -60,7 +60,7 @@
   --state-unknown: oklch(0.75 0.004 255);
   --state-unknown-soft: oklch(0.95 0.002 255);
 
-  /* ---- Semantic aliases (exact vocabulary from docs/ui-principles.md) ---- */
+  /* ---- Semantic aliases (exact vocabulary from the Visual rules in CLAUDE.md) ---- */
   --surface-raised: var(--surface-elevated);
   --border-subtle: var(--border);
 
@@ -277,22 +277,3 @@
 }
 
 /* ---- AG Grid: mapped onto our own tokens, not the default AG theme ---- */
-.ag-theme-heizen {
-  --ag-background-color: var(--surface);
-  --ag-foreground-color: var(--text-primary);
-  --ag-header-background-color: var(--surface-sunken);
-  --ag-header-foreground-color: var(--text-muted);
-  --ag-border-color: var(--border);
-  --ag-row-border-color: var(--border);
-  --ag-row-hover-color: var(--interaction-hover);
-  --ag-selected-row-background-color: var(--interaction-selected);
-  --ag-font-family: var(--font-sans);
-  --ag-font-size: 12.5px;
-  --ag-header-font-size: 11px;
-  --ag-header-column-separator-display: none;
-  --ag-cell-horizontal-padding: 12px;
-  --ag-row-height: 38px;
-  --ag-header-height: 34px;
-  --ag-wrapper-border-radius: var(--radius-md);
-  --ag-input-focus-border-color: var(--ring);
-}

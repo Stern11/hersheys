@@ -104,8 +104,6 @@ understandable in 5–10 seconds.
 
 - Don't put planning calculations in a React component. Derived numbers come
   from `lib/situations/*` and `lib/planning-engine/*` (pure, no React imports).
-- Don't import `data/synthetic/*` into new code. It is V1's input adapter, kept
-  for the preserved V1 engine. New work reads a `PlanningDataset`.
 - Don't use `Math.random()` or `Date.now()` in data generation. Everything
   derives from a seed and from `dataset.metadata.planningNow`.
 - Don't import `lib/excel/template.ts` (ExcelJS, Node-only) into a client
@@ -136,7 +134,6 @@ Before implementing a feature, work through these, then code:
 ## Stack
 
 Next.js (App Router) + TypeScript (strict, `noUncheckedIndexedAccess`) +
-Tailwind v4 + hand-written shadcn-style components in `components/ui` + Zustand
-+ Zod + AG Grid/Charts (V1 surfaces) + `motion` + TanStack Query.
+Tailwind v4 + hand-written shadcn-style components in `components/ui` + Zustand.
 ExcelJS (server, template generation) + SheetJS (browser, parsing).
 No database, no real auth, no production integrations.

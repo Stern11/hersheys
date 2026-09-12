@@ -32,11 +32,7 @@ import type { ContributorDisposition } from "@/types/situation";
  * never the baseline (V2 §54). Nothing here mutates `useDataset()`'s
  * dataset.
  *
- * The V1 copilot (`components/ai/copilot-runtime.ts` + `copilot-dock.tsx`)
- * is left running for the V1 Scenario Lab (`CopilotToggle` in
- * `scenario-lab-view.tsx`), which still reads `calculateScenario()`. This bar
- * no longer touches that path — it keeps its own short local transcript
- * instead, shown in the panel below.
+ * It keeps its own short local transcript, shown in the panel below.
  */
 export function AiCommandBar({
   className,
