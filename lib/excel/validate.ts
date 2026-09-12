@@ -121,6 +121,7 @@ export function validateWorkbook(
     itemLineMappings: mappedSheets.get("Item_Line_Mapping"),
     leadTimeHistory: mappedSheets.get("Lead_Time_History"),
     inventorySupply: mappedSheets.get("Inventory_Supply"),
+    readinessHistory: mappedSheets.get("Readiness_History"),
   };
 
   // normalizePlanningInput raises all row-level issues itself into the same
@@ -195,6 +196,12 @@ const CAPABILITY_MESSAGES: readonly CapabilityGap[] = [
     sheet: "Inventory_Supply",
     code: "capability_netrequirements_unavailable",
     message: "Material figures are shown as gross exposure only, never as a net procurement requirement.",
+  },
+  {
+    key: "readinessHistory",
+    sheet: "Readiness_History",
+    code: "capability_readinesshistory_unavailable",
+    message: "Add weekly readiness history to see this season's pace against last year's.",
   },
 ];
 

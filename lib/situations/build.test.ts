@@ -33,6 +33,7 @@ function meta(planningNow: string, currency = "USD"): DatasetMetadata {
       materials: true,
       leadTimeAnalysis: true,
       netRequirements: true,
+      readinessHistory: false,
     },
   };
 }
@@ -58,6 +59,7 @@ function makeDataset(partial: {
     itemLineMappings: partial.itemLineMappings ?? [],
     leadTimeHistory: partial.leadTimeHistory ?? [],
     inventorySupply: partial.inventorySupply ?? [],
+    readinessHistory: [],
   };
 }
 

@@ -24,9 +24,7 @@ import { NotAvailable, Page, SectionRule } from "@/components/v2/page";
 import { ScenarioToolbar } from "./scenario-toolbar";
 import { ControlsVolume } from "./controls-volume";
 import { ControlsAnalogues } from "./controls-analogues";
-import { ControlsCapacity } from "./controls-capacity";
 import { ControlsAllocation } from "./controls-allocation";
-import { ControlsMaterials } from "./controls-materials";
 import { ImpactPanel } from "./impact-panel";
 import { ChangesList } from "./changes-list";
 import { CommitBar } from "./commit-bar";
@@ -216,17 +214,29 @@ export function ScenarioLabShell({
                 <ControlsAnalogues
                   scenarioId={activeScenario.id}
                   baseline={baseline}
+                  scenarioMaterialExposure={scenarioSituation?.materialExposure}
                   adjustments={adjustments}
                   focusItemId={focusItemId}
                 />
-                <ControlsCapacity scenarioId={activeScenario.id} baseline={baseline} adjustments={adjustments} />
+                {/* Capacity (target utilisation / available hours) and
+                    per-material lead time used to live here as editable
+                    controls. Feedback was that a planner treats both as
+                    already decided upstream — capacity by whoever owns the
+                    line, lead time by the system's own basis — so neither
+                    belongs in a daily planning workspace. The pull-forward
+                    chart below is the one capacity lever that actually is a
+                    planner's decision (Workstream A3), and it needs no
+                    sidebar control of its own — the slider lives on the
+                    chart. Both store actions (`setAvailableHours`,
+                    `setTargetUtilization`, `setLeadTime`) stay wired for the
+                    AI copilot (`components/ai/ai-command-bar.tsx`) even
+                    though no control here calls them anymore. */}
                 <ControlsAllocation
                   scenarioId={activeScenario.id}
                   dataset={dataset}
                   baseline={baseline}
                   adjustments={adjustments}
                 />
-                <ControlsMaterials scenarioId={activeScenario.id} baseline={baseline} adjustments={adjustments} />
               </>
             ) : null}
           </aside>

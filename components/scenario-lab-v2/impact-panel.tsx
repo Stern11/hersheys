@@ -3,20 +3,23 @@
  *
  * A metric band always compares baseline to scenario, regardless of which
  * one is on screen below — the planner should never have to hold last
- * screen's numbers in their head. The capacity matrix itself can only show
+ * screen's numbers in their head. The capacity visual itself can only show
  * one state at a time, so it follows the same baseline/scenario toggle that
- * appears in the toolbar (`viewMode` in the scenario store), never a toggle
- * of its own.
+ * appears in the toolbar (`viewMode` in the scenario store) — that axis is
+ * separate from, and independent of, the pull-forward chart's own
+ * Before/After toggle (baseline-vs-scenario is "which plan"; Before/After is
+ * "with or without pulling production forward on top of that plan").
  */
 
 "use client";
 
 import { useMemo, useState } from "react";
-import { CapacityCellDetail, CapacityMatrix } from "@/components/v2/capacity-matrix";
+import { CapacityCellDetail } from "@/components/v2/capacity-matrix";
+import { CapacityPullForward } from "@/components/v2/capacity-pull-forward";
 import { MetricRow, NotAvailable, SectionRule, type MetricItem, type MetricTone } from "@/components/v2/page";
-import type { CapacityExposure, PlanningSituation } from "@/types/situation";
 import { formatMonthLabel, weeksBetween } from "@/lib/dataset/periods";
 import { fmtDateShort, fmtPct, fmtUnits } from "@/lib/utils/format";
+import type { CapacityExposure, PlanningSituation } from "@/types/situation";
 
 /** Lower/higher-is-better tone against a no-change epsilon. */
 function toneOf(delta: number | undefined, higherIsBetter: boolean, epsilon: number): MetricTone {
@@ -125,6 +128,20 @@ function buildMetrics(
   return items;
 }
 
+/** The line whose load is tightest relative to its own capacity right now. */
+function defaultLineId(exposure: CapacityExposure): string | undefined {
+  if (exposure.peak) return exposure.peak.lineId;
+  return exposure.lines[0]?.lineId;
+}
+
+/** The month a line is tightest in — where the chart and decomposition open. */
+function defaultPeriodFor(exposure: CapacityExposure, lineId: string | undefined): string | undefined {
+  if (!lineId) return undefined;
+  const cells = exposure.cells.filter((c) => c.lineId === lineId);
+  if (cells.length === 0) return undefined;
+  return cells.reduce((worst, c) => (c.effectiveHours > worst.effectiveHours ? c : worst)).period;
+}
+
 export function ImpactPanel({
   baseline,
   scenario,
@@ -134,19 +151,64 @@ export function ImpactPanel({
   scenario: PlanningSituation;
   viewMode: "baseline" | "scenario";
 }) {
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [focusLineId, setFocusLineId] = useState<string | null>(null);
+  const [focusPeriod, setFocusPeriod] = useState<string | null>(null);
 
-  const activeExposure: CapacityExposure =
-    viewMode === "scenario" ? scenario.capacityExposure : baseline.capacityExposure;
+  const activeSituation = viewMode === "scenario" ? scenario : baseline;
+  const activeExposure: CapacityExposure = activeSituation.capacityExposure;
 
-  const selectedCell = useMemo(() => {
-    if (!activeExposure.available) return undefined;
-    if (selectedKey) {
-      const found = activeExposure.cells.find((c) => `${c.lineId}::${c.period}` === selectedKey);
-      if (found) return found;
+  const lineId =
+    focusLineId && activeExposure.lines.some((l) => l.lineId === focusLineId)
+      ? focusLineId
+      : defaultLineId(activeExposure);
+  const period =
+    focusPeriod && activeExposure.cells.some((c) => c.lineId === lineId && c.period === focusPeriod)
+      ? focusPeriod
+      : defaultPeriodFor(activeExposure, lineId);
+
+  const selectedCell = useMemo(
+    () => activeExposure.cells.find((c) => c.lineId === lineId && c.period === period),
+    [activeExposure, lineId, period]
+  );
+
+  // Every unit a candidate carries forward, keyed by candidate id — the
+  // pull-forward chart's only way to turn hours into a headline unit figure,
+  // and it needs nothing new: this is the same `plannedUnits` every other
+  // page already reads.
+  const candidateUnitsById = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const c of activeSituation.candidateItems) out[c.id] = c.plannedUnits;
+    return out;
+  }, [activeSituation]);
+
+  // The longest lead time among components any candidate loading this line
+  // actually needs — a real, derived number, just applied uniformly across
+  // the line's months rather than varying month to month, since the material
+  // model has no finer-grained mapping than "this component feeds this line's
+  // items" to read a per-month figure from. Drives the drop-dead lane below
+  // the chart; when nothing resolves, the lane simply doesn't render.
+  const lineLeadTimeDays = useMemo(() => {
+    if (!lineId) return undefined;
+    const candidateIds = new Set<string>();
+    for (const cell of activeExposure.cells) {
+      if (cell.lineId !== lineId) continue;
+      for (const contributor of cell.contributors) candidateIds.add(contributor.candidateId);
     }
-    return activeExposure.peak;
-  }, [activeExposure, selectedKey]);
+    if (candidateIds.size === 0) return undefined;
+    if (!activeSituation.materialExposure.available) return undefined;
+    let max: number | undefined;
+    for (const row of activeSituation.materialExposure.rows) {
+      const relevant = row.contributors.some((c) => candidateIds.has(c.candidateId));
+      if (!relevant) continue;
+      if (max === undefined || row.leadTimeDays > max) max = row.leadTimeDays;
+    }
+    return max;
+  }, [activeExposure, lineId, activeSituation]);
+
+  const leadTimeDaysFor = useMemo(
+    () => (lineLeadTimeDays !== undefined ? () => lineLeadTimeDays : undefined),
+    [lineLeadTimeDays]
+  );
 
   const metrics = useMemo(() => buildMetrics(baseline, scenario), [baseline, scenario]);
 
@@ -174,35 +236,78 @@ export function ImpactPanel({
       {/* The Baseline/Scenario toggle lives once, in the toolbar — a second
           copy of the same control on the same screen is not a shortcut, it is
           two things to keep in sync by eye. */}
-      <SectionRule label="Effective utilisation by line and month" />
+      <SectionRule
+        label="Load vs. capacity"
+        action={
+          activeExposure.available && activeExposure.lines.length > 1 ? (
+            <LinePicker
+              lines={activeExposure.lines}
+              exposedLineIds={activeExposure.exposedLineIds}
+              value={lineId}
+              onChange={(id) => {
+                setFocusLineId(id);
+                setFocusPeriod(null);
+              }}
+            />
+          ) : null
+        }
+      />
 
       {!activeExposure.available ? (
         <NotAvailable
           title="Capacity exposure not available"
           detail={activeExposure.unavailableReason ?? "The required line and calendar data was not provided."}
         />
+      ) : !lineId ? (
+        <p className="text-[13px] text-[var(--text-muted)]">No line data for this situation.</p>
       ) : (
         <>
-          <CapacityMatrix
+          <CapacityPullForward
             exposure={activeExposure}
-            selected={selectedCell}
-            onSelect={(cell) => setSelectedKey(`${cell.lineId}::${cell.period}`)}
+            lineId={lineId}
+            candidateUnitsById={candidateUnitsById}
+            leadTimeDaysFor={leadTimeDaysFor}
+            selectedPeriod={period}
+            onSelectPeriod={setFocusPeriod}
           />
 
           <SectionRule
-            label={
-              selectedCell
-                ? `Decomposition · ${selectedCell.lineName} · ${formatMonthLabel(selectedCell.period)}`
-                : "Decomposition"
-            }
+            label={selectedCell ? `Decomposition · ${selectedCell.lineName} · ${formatMonthLabel(selectedCell.period)}` : "Decomposition"}
           />
           {selectedCell ? (
             <CapacityCellDetail cell={selectedCell} />
           ) : (
-            <p className="text-[13px] text-[var(--text-muted)]">Select a cell in the matrix above to see its build-up.</p>
+            <p className="text-[13px] text-[var(--text-muted)]">Select a month in the chart above to see its build-up.</p>
           )}
         </>
       )}
     </div>
+  );
+}
+
+function LinePicker({
+  lines,
+  exposedLineIds,
+  value,
+  onChange,
+}: {
+  lines: { lineId: string; lineName: string }[];
+  exposedLineIds: string[];
+  value: string | undefined;
+  onChange: (lineId: string) => void;
+}) {
+  return (
+    <select
+      value={value ?? ""}
+      onChange={(e) => onChange(e.target.value)}
+      className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-[12px] text-[var(--text-primary)]"
+    >
+      {lines.map((l) => (
+        <option key={l.lineId} value={l.lineId}>
+          {l.lineName}
+          {exposedLineIds.includes(l.lineId) ? " · exposed" : ""}
+        </option>
+      ))}
+    </select>
   );
 }

@@ -15,23 +15,24 @@
  */
 
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { useDataset } from "@/components/dataset/dataset-provider";
-import { StateBadge } from "@/components/v2/state-badge";
 import { Label, Page, PageHeader, SectionRule, NotAvailable } from "@/components/v2/page";
+import { BeforeAfterPlan } from "@/components/v2/before-after-plan";
+import { CoverageSparkline } from "@/components/v2/coverage-sparkline";
+import { ReadinessCurveCard } from "@/components/v2/readiness-curve";
 import { summarizePortfolio, type ExposedLine, type PortfolioSummary } from "@/lib/situations/portfolio";
+import { buildReadinessCurve } from "@/lib/situations/readiness-curve";
 import { WelcomePanel } from "@/components/v2/welcome-panel";
 import { formatMonthLabel } from "@/lib/dataset/periods";
 import { cn } from "@/lib/utils/cn";
 import { fmtDateShort, fmtHours, fmtMoney, fmtPct, fmtUnits, fmtWeeks } from "@/lib/utils/format";
-import type { PlanningSituation } from "@/types/situation";
 
 export default function OverviewPage() {
-  const { situations } = useDataset();
+  const { dataset, situations } = useDataset();
   const summary = useMemo(() => summarizePortfolio(situations), [situations]);
 
-  if (situations.length === 0) {
+  if (situations.length === 0 || !dataset) {
     return (
       <Page>
         <PageHeader title="Overview" subtitle="What is not represented, and what it costs" />
@@ -54,6 +55,10 @@ export default function OverviewPage() {
 
       <Headline summary={summary} />
 
+      {/* Capacity leads the rest of the page: it is the consequence a
+          stakeholder reads next after "how big is this", and everything below
+          it — the before/after rollup, the per-programme pace — reads more
+          naturally once the factory picture is already on screen. */}
       <SectionRule label="What that does to the plan" />
       <Consequences summary={summary} />
 
@@ -68,10 +73,22 @@ export default function OverviewPage() {
         </>
       ) : null}
 
-      <SectionRule label="Programmes" />
-      <div className="divide-y divide-[var(--border)] border-y border-[var(--border)]">
+      <SectionRule label="What changes once these SKUs are counted" />
+      <BeforeAfterPlan beforeAfter={summary.beforeAfter} />
+
+      <SectionRule label="Season readiness" />
+      <p className="-mt-3 mb-3 text-[12.5px] leading-snug text-[var(--text-muted)]">
+        Each programme against where it stood at this same point last year, and the one thing that could still keep an
+        unrepresented item from making it.
+      </p>
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {situations.map((situation) => (
-          <SituationRow key={situation.id} situation={situation} />
+          <ReadinessCurveCard
+            key={situation.id}
+            curve={buildReadinessCurve(situation, dataset)}
+            situation={situation}
+            href={`/workspace/${situation.id}/reconcile`}
+          />
         ))}
       </div>
     </Page>
@@ -202,6 +219,7 @@ function Consequences({ summary }: { summary: PortfolioSummary }) {
                 } go past target`
               : "every line stays inside target"
         }
+        extra={summary.capacityUnavailable ? undefined : <CoverageSparkline months={summary.coverageByMonth} />}
       />
 
       <Consequence
@@ -245,6 +263,7 @@ function Consequence({
   detail,
   footnote,
   tone,
+  extra,
 }: {
   heading: string;
   question: string;
@@ -252,6 +271,10 @@ function Consequence({
   detail: string;
   footnote?: string;
   tone: "positive" | "warning" | "critical" | "neutral";
+  /** A supporting figure below the footnote — sized well below the hero
+   *  number, per the one-hero-metric-per-screen rule (V2 visual rules). Used
+   *  for the coverage sparkline on Manufacturing; nothing else needs it. */
+  extra?: ReactNode;
 }) {
   return (
     <div className="bg-[var(--surface)] px-5 py-4">
@@ -272,6 +295,7 @@ function Consequence({
       {footnote ? (
         <div className="mt-1 text-[11.5px] leading-snug text-[var(--text-muted)]">{footnote}</div>
       ) : null}
+      {extra}
     </div>
   );
 }
@@ -341,66 +365,3 @@ function ExposedLineRow({ line }: { line: ExposedLine }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Programme rows                                                      */
-/* ------------------------------------------------------------------ */
-
-function SituationRow({ situation }: { situation: PlanningSituation }) {
-  const { bridge, runway, candidateItems } = situation;
-  const unrepresented = candidateItems.filter((c) => c.match.matchedItemId === undefined).length;
-  const undecided = candidateItems.filter(
-    (c) => c.disposition === "unreviewed" || c.disposition === "under_review"
-  ).length;
-
-  return (
-    <Link
-      href={`/workspace/${situation.id}/reconcile`}
-      className="group flex flex-col gap-2 py-3.5 transition-colors hover:bg-[var(--interaction-hover)] sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6 sm:gap-y-2"
-      style={{ transitionDuration: "var(--duration-fast)" }}
-    >
-      <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center">
-        <span className="flex-none">
-          <StateBadge state={situation.state} />
-        </span>
-        <div className="min-w-0">
-          <div className="text-[13.5px] font-medium text-[var(--text-primary)] sm:truncate">
-            {situation.title}
-          </div>
-          <div className="text-[11.5px] leading-snug text-[var(--text-muted)] sm:truncate">
-            {unrepresented} product{unrepresented === 1 ? "" : "s"} unrepresented
-            {undecided > 0 ? ` · ${undecided} still to decide` : ""}
-            {situation.productionWindow
-              ? ` · builds from ${fmtDateShort(situation.productionWindow.start)}`
-              : ""}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex flex-none items-center gap-8 pl-[76px] sm:gap-7 sm:pl-0">
-        <Cell label="Unresolved" value={fmtMoney(bridge.unresolvedValue, bridge.currency)} />
-        <Cell
-          label="First deadline"
-          value={runway.weeksOfRunway !== undefined ? fmtWeeks(runway.weeksOfRunway) : "—"}
-          critical={(runway.weeksOfRunway ?? 99) <= 8}
-        />
-        <ArrowRight className="hidden size-3.5 text-[var(--text-muted)] opacity-0 transition-opacity group-hover:opacity-100 sm:block" />
-      </div>
-    </Link>
-  );
-}
-
-function Cell({ label, value, critical }: { label: string; value: string; critical?: boolean }) {
-  return (
-    <div className="text-right">
-      <div
-        className={cn(
-          "text-[13px] font-medium tabular-nums",
-          critical ? "text-[var(--risk-critical)]" : "text-[var(--text-primary)]"
-        )}
-      >
-        {value}
-      </div>
-      <div className="text-[11px] text-[var(--text-muted)]">{label}</div>
-    </div>
-  );
-}

@@ -19,6 +19,7 @@ export const SHEET_NAMES = [
   "Item_Line_Mapping",
   "Lead_Time_History",
   "Inventory_Supply",
+  "Readiness_History",
 ] as const;
 
 export type SheetName = (typeof SHEET_NAMES)[number];

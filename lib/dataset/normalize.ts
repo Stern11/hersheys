@@ -26,6 +26,7 @@ import type {
   PlanningDataset,
   RawPlanningInput,
   RawRow,
+  ReadinessSnapshotRow,
 } from "@/types/dataset";
 import type { DateRange } from "@/types/shared";
 import { COMPONENT_TYPES, MAPPING_LEVELS } from "@/lib/excel/schema";
@@ -55,6 +56,7 @@ export function normalizePlanningInput(
   const itemLineMappings = normalizeItemLineMappings(input.itemLineMappings ?? [], collector);
   const leadTimeHistory = normalizeLeadTimeHistory(input.leadTimeHistory ?? [], collector);
   const inventorySupply = normalizeInventorySupply(input.inventorySupply ?? [], collector);
+  const readinessHistory = normalizeReadinessHistory(input.readinessHistory ?? [], collector);
 
   const capabilities: DatasetCapabilities = {
     reconciliation:
@@ -63,6 +65,7 @@ export function normalizePlanningInput(
     materials: boms.length > 0,
     leadTimeAnalysis: leadTimeHistory.length > 0,
     netRequirements: inventorySupply.length > 0,
+    readinessHistory: readinessHistory.length > 0,
   };
 
   const dataset: PlanningDataset = {
@@ -75,6 +78,7 @@ export function normalizePlanningInput(
     itemLineMappings,
     leadTimeHistory,
     inventorySupply,
+    readinessHistory,
   };
 
   crossReference(dataset, collector);
@@ -691,6 +695,52 @@ function normalizeInventorySupply(rows: RawRow[], collector: IssueCollector): In
       openPoQty,
       plannedReceiptQty,
       uom,
+    });
+  });
+  return out;
+}
+
+function normalizeReadinessHistory(rows: RawRow[], collector: IssueCollector): ReadinessSnapshotRow[] {
+  const sheet: SheetName = "Readiness_History";
+  const out: ReadinessSnapshotRow[] = [];
+  rows.forEach((row, i) => {
+    const rowNumber = i + FIRST_DATA_ROW;
+    const seasonPeriod = requireString(row, "season_period", sheet, rowNumber, collector);
+    const weeksBeforeProductionStart = requireNumber(
+      row,
+      "weeks_before_production_start",
+      sheet,
+      rowNumber,
+      collector,
+      { min: 0 }
+    );
+
+    const percentRaw = readCell(row, "represented_pct");
+    let representedPct: number | undefined;
+    if (isBlank(percentRaw)) {
+      collector.error(sheet, "missing_represented_pct", "represented_pct is blank.", {
+        column: "represented_pct",
+        row: rowNumber,
+      });
+    } else {
+      representedPct = coercePercent(percentRaw);
+      if (representedPct === undefined) {
+        collector.error(sheet, "invalid_represented_pct", "represented_pct is not a readable percentage.", {
+          column: "represented_pct",
+          row: rowNumber,
+        });
+      }
+    }
+
+    if (!seasonPeriod || weeksBeforeProductionStart === undefined || representedPct === undefined) return;
+
+    out.push({
+      id: `rh_${i}`,
+      seasonPeriod,
+      weeksBeforeProductionStart: Math.round(weeksBeforeProductionStart),
+      representedPct,
+      asOfDate: optionalDate(row, "as_of_date", sheet, rowNumber, collector),
+      notes: coerceString(readCell(row, "notes")),
     });
   });
   return out;

@@ -279,6 +279,27 @@ const INVENTORY_SUPPLY: SheetSpec = {
   ],
 };
 
+const READINESS_HISTORY: SheetSpec = {
+  name: "Readiness_History",
+  required: false,
+  purpose: "Weekly snapshots of how much of a season's assortment was represented, by weeks before production start.",
+  absentConsequence: "The Overview readiness curve is unavailable — there is no history to show a pace against.",
+  columns: [
+    c("season_period", true, "string", "Period or program key this snapshot belongs to. Same shape as planning_period — a prior season's rows are what let this year compare to it.", "2027-Halloween", { width: 20, aliases: ["period", "planning_period", "season"] }),
+    c("weeks_before_production_start", true, "integer", "How many weeks before that season's production start this snapshot was taken.", 30, { width: 26, min: 0, aliases: ["weeks_before", "weeks_out"] }),
+    c("represented_pct", true, "percent", "Share of that season's eventual assortment represented at this point. 41, 41% and 0.41 all mean 41%.", "41%", { width: 16, aliases: ["represented", "pct_represented", "completeness_pct"] }),
+    c("as_of_date", false, "date", "Calendar date the snapshot was taken, for provenance.", "2026-11-02", { width: 14 }),
+    c("notes", false, "string", "Free text.", "", { width: 24 }),
+  ],
+  exampleRows: [
+    { season_period: "2026-Halloween", weeks_before_production_start: 44, represented_pct: "18%", as_of_date: "2025-11-24", notes: "" },
+    { season_period: "2026-Halloween", weeks_before_production_start: 30, represented_pct: "53%", as_of_date: "2026-02-27", notes: "" },
+    { season_period: "2026-Halloween", weeks_before_production_start: 7, represented_pct: "97%", as_of_date: "2026-06-04", notes: "" },
+    { season_period: "2027-Halloween", weeks_before_production_start: 44, represented_pct: "21%", as_of_date: "2026-11-23", notes: "" },
+    { season_period: "2027-Halloween", weeks_before_production_start: 30, represented_pct: "41%", as_of_date: "2027-03-01", notes: "" },
+  ],
+};
+
 /* ------------------------------------------------------------------ */
 
 export const WORKBOOK_SCHEMA: readonly SheetSpec[] = [
@@ -290,6 +311,7 @@ export const WORKBOOK_SCHEMA: readonly SheetSpec[] = [
   ITEM_LINE_MAPPING,
   LEAD_TIME_HISTORY,
   INVENTORY_SUPPLY,
+  READINESS_HISTORY,
 ];
 
 export function sheetSpec(name: SheetName): SheetSpec {

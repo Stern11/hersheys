@@ -919,7 +919,7 @@ function materialReason(
   return `Packaging decision follows the final item, on ${pct}% of comparable items.`;
 }
 
-interface LeadTimeStat {
+export interface LeadTimeStat {
   days: number;
   basis: "system" | "historical_median" | "historical_p80";
 }
@@ -930,7 +930,7 @@ interface LeadTimeStat {
  * deadline. Where there is no history, the system assumption stands and is
  * labelled as such rather than dressed up as observed.
  */
-function leadTimeStats(dataset: PlanningDataset): Map<string, LeadTimeStat> {
+export function leadTimeStats(dataset: PlanningDataset): Map<string, LeadTimeStat> {
   const byMaterial = new Map<string, number[]>();
   const systemByMaterial = new Map<string, number>();
 

@@ -27,6 +27,7 @@ const SHEET_SOURCES = {
   Item_Line_Mapping: "itemLineMappings",
   Lead_Time_History: "leadTimeHistory",
   Inventory_Supply: "inventorySupply",
+  Readiness_History: "readinessHistory",
 } as const;
 
 /**
@@ -92,6 +93,7 @@ describe("demo and Excel adapters produce the same dataset", () => {
     expect(uploaded.itemLineMappings).toEqual(demo.itemLineMappings);
     expect(uploaded.leadTimeHistory).toEqual(demo.leadTimeHistory);
     expect(uploaded.inventorySupply).toEqual(demo.inventorySupply);
+    expect(uploaded.readinessHistory).toEqual(demo.readinessHistory);
   });
 
   it("drives the planning engine to identical situations", () => {

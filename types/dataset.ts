@@ -61,6 +61,8 @@ export interface DatasetCapabilities {
   leadTimeAnalysis: boolean;
   /** Inventory_Supply present — enables net (not just gross) exposure. */
   netRequirements: boolean;
+  /** Readiness_History present — enables the season readiness curve's "last year's pace" line. */
+  readinessHistory: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -279,6 +281,28 @@ export interface InventorySupplyRow {
 }
 
 /* ------------------------------------------------------------------ */
+/* Readiness_History (optional)                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * One weekly snapshot of how much of a season's assortment was represented,
+ * some number of weeks before that season's production start. Backs the
+ * Overview readiness curve's "today" trajectory and its "last year's pace"
+ * comparison (V2 §39). Never fabricated: absent this sheet, the curve says so
+ * rather than showing a shape nothing measured.
+ */
+export interface ReadinessSnapshotRow {
+  id: string;
+  /** Program/period key, e.g. "2027-Halloween" — same shape as planning_period. */
+  seasonPeriod: PeriodKey;
+  weeksBeforeProductionStart: number;
+  /** 0-1. Share of that season's eventual assortment represented at this point. */
+  representedPct: number;
+  asOfDate?: string;
+  notes?: string;
+}
+
+/* ------------------------------------------------------------------ */
 /* The dataset                                                         */
 /* ------------------------------------------------------------------ */
 
@@ -292,6 +316,7 @@ export interface PlanningDataset {
   itemLineMappings: ItemLineMappingRow[];
   leadTimeHistory: LeadTimeHistoryRow[];
   inventorySupply: InventorySupplyRow[];
+  readinessHistory: ReadinessSnapshotRow[];
 }
 
 /**
@@ -309,6 +334,7 @@ export interface RawPlanningInput {
   itemLineMappings?: RawRow[];
   leadTimeHistory?: RawRow[];
   inventorySupply?: RawRow[];
+  readinessHistory?: RawRow[];
 }
 
 /** One spreadsheet row: header -> cell value, before coercion. */

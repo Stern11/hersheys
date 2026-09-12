@@ -56,6 +56,7 @@ function meta(planningNow: string): DatasetMetadata {
       materials: true,
       leadTimeAnalysis: true,
       netRequirements: true,
+      readinessHistory: false,
     },
   };
 }
@@ -105,6 +106,7 @@ function buildUnavailableDataset(): PlanningDataset {
     itemLineMappings: [],
     leadTimeHistory: [],
     inventorySupply: [],
+    readinessHistory: [],
   };
 }
 

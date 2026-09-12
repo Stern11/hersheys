@@ -1392,6 +1392,74 @@ function generateInventorySupply(rng: Rng, delta: number): RawRow[] {
 }
 
 /* ------------------------------------------------------------------ */
+/* Readiness_History                                                    */
+/* ------------------------------------------------------------------ */
+
+/** Weeks-before-production-start a real export would plausibly snapshot at. */
+const READINESS_CHECKPOINTS = [44, 38, 32, 26, 20, 14, 8, 4, 0] as const;
+const READINESS_HORIZON_WEEKS = READINESS_CHECKPOINTS[0];
+
+/** Smoothstep — an S-curve from 0 to 1, standing in for "assortment ramps up slowly, then fast, then settles". */
+function sCurve(t: number): number {
+  const clamped = clamp01(t);
+  return clamped * clamped * (3 - 2 * clamped);
+}
+
+/**
+ * Weekly-ish snapshots of assortment completeness, for the Overview readiness
+ * curve (V2 §39). Two series per programme:
+ *
+ * - the prior season, a completed history ramping to ~95-100% by its own
+ *   production start — this is what "last year's pace" is read against.
+ * - the current season, the *same* shape at a seeded pace factor away from
+ *   last year's, but truncated well before "now": the live, actually-computed
+ *   representedPct is what stands for today, never a value guessed here. That
+ *   is also why this function takes no candidate-matching input at all — it
+ *   would have no way to keep a guess consistent with the real figure, so it
+ *   does not try.
+ */
+function generateReadinessHistory(rng: Rng, program: Program, planningNow: string): RawRow[] {
+  const rows: RawRow[] = [];
+  const nowMs = Date.parse(planningNow);
+  const historicalProductionStartMs = Date.parse(program.historicalProductionWindow.start);
+  const productionStartMs = Date.parse(program.productionWindow.start);
+  const weeksBeforeNow = Math.floor((productionStartMs - nowMs) / (7 * 86_400_000));
+
+  const startPct = 0.1 + rng.float() * 0.1; // 10-20% at the earliest checkpoint
+  const historicalFinalPct = 0.95 + rng.float() * 0.05; // last year finished 95-100% represented
+  const paceFactor = 0.75 + rng.float() * 0.35; // this year is 0.75-1.10x last year's pace
+
+  for (const weeksBefore of READINESS_CHECKPOINTS) {
+    const t = 1 - weeksBefore / READINESS_HORIZON_WEEKS;
+
+    const historicalPct = clamp01(startPct + (historicalFinalPct - startPct) * sCurve(t));
+    rows.push({
+      season_period: program.historicalPeriod,
+      weeks_before_production_start: weeksBefore,
+      represented_pct: round4(historicalPct),
+      as_of_date: isoDate(historicalProductionStartMs - weeksBefore * 7 * 86_400_000),
+      notes: "",
+    });
+
+    // A snapshot from the future isn't a snapshot — and a synthetic point
+    // sitting right next to the live "today" figure risks a visible seam
+    // where they disagree, so this stops a few weeks short rather than
+    // right up against it.
+    if (weeksBefore <= weeksBeforeNow + 3) continue;
+    const currentPct = clamp01(startPct + (historicalFinalPct - startPct) * sCurve(t) * paceFactor);
+    rows.push({
+      season_period: program.planningPeriod,
+      weeks_before_production_start: weeksBefore,
+      represented_pct: round4(currentPct),
+      as_of_date: isoDate(productionStartMs - weeksBefore * 7 * 86_400_000),
+      notes: "",
+    });
+  }
+
+  return rows;
+}
+
+/* ------------------------------------------------------------------ */
 /* Entry points                                                         */
 /* ------------------------------------------------------------------ */
 
@@ -1406,6 +1474,7 @@ export function generateDemoRawInput(options: DemoDatasetOptions = {}): RawPlann
   const currentPlanItems: RawRow[] = [];
   const historicalItems: RawRow[] = [];
   const boms: RawRow[] = [];
+  const readinessHistory: RawRow[] = [];
   const itemRefs: { itemId: string; family: Family }[] = [];
 
   for (const nativeProgram of PROGRAMS) {
@@ -1416,6 +1485,9 @@ export function generateDemoRawInput(options: DemoDatasetOptions = {}): RawPlann
     historicalItems.push(...out.historicalRows);
     boms.push(...out.bomRows);
     itemRefs.push(...out.itemRefs);
+    readinessHistory.push(
+      ...generateReadinessHistory(new Rng(`${seed}::readiness::${program.code}`), program, planningNow)
+    );
 
     // A second, older comparable season per programme, so the season-basis
     // control has more than one season to offer. Complete with BOMs, so
@@ -1465,6 +1537,7 @@ export function generateDemoRawInput(options: DemoDatasetOptions = {}): RawPlann
     itemLineMappings,
     leadTimeHistory,
     inventorySupply,
+    readinessHistory,
   };
 }
 

@@ -66,6 +66,7 @@ describe("generateDemoDataset — capabilities", () => {
       materials: true,
       leadTimeAnalysis: true,
       netRequirements: true,
+      readinessHistory: true,
     });
   });
 

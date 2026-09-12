@@ -124,10 +124,15 @@ export function FieldRow({
   const sliderRange =
     slider && min !== undefined && max !== undefined ? { min, max } : undefined;
 
-  // A bare 488 says nothing about what it counts, so a plain number carries
-  // its unit. Percentages and unit counts already carry their own.
-  const suffix = display === "num" && unit ? unit : "";
-  const show = (value: number) => `${formatValue(value, display)}${suffix}`;
+  // A bare 488 — or a bare 4237007 — says nothing about what it counts, so a
+  // plain number carries its unit and a unit-count carries the word "units"
+  // (fmtUnits's own M/K compaction is a magnitude, not a unit of measure —
+  // "4.24M" alone doesn't say units, dollars, or anything else). Only a
+  // percentage already carries its own suffix inline.
+  const suffix = display === "num" ? (unit ?? "") : display === "units" ? "units" : "";
+  // A single-letter/short abbreviation reads fine glued to the number ("120h",
+  // "6wks" elsewhere in this app); a whole word does not ("4.54Munits").
+  const show = (value: number) => (suffix ? `${formatValue(value, display)}${display === "units" ? " " : ""}${suffix}` : formatValue(value, display));
 
   const summary = isOverridden ? (
     <>
