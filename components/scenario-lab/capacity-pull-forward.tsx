@@ -218,7 +218,7 @@ interface Tile {
   tone: TileTone;
 }
 
-// The same `color/opacity` arbitrary-value syntax `components/v2/runway.tsx`
+// The same `color/opacity` arbitrary-value syntax `components/workspace/runway.tsx`
 // already uses for its runway band — Tailwind resolves it via color-mix, so
 // it works on an arbitrary CSS-variable colour where `bg-opacity-*` would not
 // (that utility only affects colours defined through Tailwind's own rgba

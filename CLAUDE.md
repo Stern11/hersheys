@@ -9,7 +9,7 @@ planning methodology, the confidence model, and the domain vocabulary.
 product framing where they conflict.** V1 became too broad; V2 narrows to one
 job. Don't reintroduce the V1 IA because the PRD describes it.
 
-See `docs/v2-architecture.md` for the layer-by-layer map.
+See `docs/architecture.md` for the layer-by-layer map.
 
 ## What this product is
 
@@ -103,14 +103,15 @@ understandable in 5–10 seconds.
 ## What NOT to do
 
 - Don't put planning calculations in a React component. Derived numbers come
-  from `lib/situations/*` and `lib/planning-engine/*` (pure, no React imports).
+  from `lib/situations/*` (pure, no React imports).
 - Don't use `Math.random()` or `Date.now()` in data generation. Everything
   derives from a seed and from `dataset.metadata.planningNow`.
 - Don't import `lib/excel/template.ts` (ExcelJS, Node-only) into a client
   component. It is served by `app/api/planning-template`.
 - Don't let a provisional assumption double-count once formal demand arrives.
-  Reconciliation goes through
-  `lib/planning-engine/reconciliation.ts::reconcileProvisional()`.
+  A prior item matched to a plan item is `already_represented` and bears no
+  load; representation is one-to-one (`lib/situations/matching.ts`). Never
+  add a second path that counts provisional and formal load side by side.
 - Don't conflate production timing and sales timing. They are separate windows
   and must stay separate wherever both are shown.
 - Don't require a placeholder finished SKU to use the product. Unresolved load
@@ -127,7 +128,8 @@ Before implementing a feature, work through these, then code:
 3. **Matching / methodology** — what makes this defensible, and how is it shown?
 4. **Planner actions** — what can they change, dismiss, validate, approve?
 5. **Derived outputs** — which `lib/situations/*` function computes it?
-6. **Visual** — which existing primitive in `components/v2/*` fits?
+6. **Visual** — which existing component fits — `components/shared/*`, or the page's own
+   `components/<page>/` folder?
 7. **Scenario variables** — which `ScenarioAdjustments` category, which store
    action?
 

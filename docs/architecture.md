@@ -64,14 +64,16 @@ decided — counting any of them would overstate the plan.
 
 ## What remains from V1
 
-One module: `lib/planning-engine/reconciliation.ts`, whose
-`reconcileProvisional()` the Decisions page calls directly to prove that
-matched provisional load is replaced rather than added.
+Nothing. The last module, V1's `reconcileProvisional()`, backed a what-if
+panel on Decisions that no planner action fed into, and went with it.
+Double-count prevention is structural instead: a prior item matched to a plan
+item becomes `already_represented` and bears no load
+(`lib/situations/matching.ts`).
 
-Everything else from V1 — the `/gaps` routes, the V1 Scenario Lab, the
+The rest of V1 — the `/gaps` routes, the V1 Scenario Lab, the
 `data/synthetic/*` input adapter, the rest of `lib/planning-engine/*`, and the
 AI tool/copilot layer built on them — was removed once nothing in the running
-app could reach it. The "Ask Heizen" bar answers through `lib/copilot-v2/*`,
+app could reach it. The "Ask Heizen" bar answers through `lib/copilot/*`,
 grounded in the same `PlanningSituation`s the page on screen renders.
 
 ## Rules that still hold

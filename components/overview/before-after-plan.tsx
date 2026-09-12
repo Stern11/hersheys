@@ -9,7 +9,7 @@
  * the two surfaces read as one visual language.
  */
 
-import { Label } from "@/components/v2/page";
+import { Label } from "@/components/shared/page";
 import { fmtHours, fmtMoney } from "@/lib/utils/format";
 import type { PortfolioBeforeAfter } from "@/lib/situations/portfolio";
 

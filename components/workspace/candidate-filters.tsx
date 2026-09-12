@@ -17,7 +17,7 @@ import {
   type CandidateFilters,
   type FilterOptions,
 } from "@/lib/situations/filters";
-import { DISPOSITION_ORDER, dispositionLabel } from "@/components/v2/state-badge";
+import { DISPOSITION_ORDER, dispositionLabel } from "@/components/shared/state-badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils/cn";
 import { fmtMoney, fmtUnits } from "@/lib/utils/format";

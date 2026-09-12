@@ -13,9 +13,9 @@
 
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { ScenarioLabShell } from "@/components/scenario-lab-v2/lab-shell";
-import { SkuPicker } from "@/components/scenario-lab-v2/sku-picker";
-import { Page } from "@/components/v2/page";
+import { ScenarioLabShell } from "@/components/scenario-lab/lab-shell";
+import { SkuPicker } from "@/components/scenario-lab/sku-picker";
+import { Page } from "@/components/shared/page";
 
 function ScenarioLabRoute() {
   const searchParams = useSearchParams();

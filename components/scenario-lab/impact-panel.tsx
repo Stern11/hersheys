@@ -14,9 +14,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CapacityCellDetail } from "@/components/v2/capacity-matrix";
-import { CapacityPullForward } from "@/components/v2/capacity-pull-forward";
-import { MetricRow, NotAvailable, SectionRule, type MetricItem, type MetricTone } from "@/components/v2/page";
+import { CapacityCellDetail } from "@/components/scenario-lab/capacity-matrix";
+import { CapacityPullForward } from "@/components/scenario-lab/capacity-pull-forward";
+import { MetricRow, NotAvailable, SectionRule, type MetricItem, type MetricTone } from "@/components/shared/page";
 import { formatMonthLabel, weeksBetween } from "@/lib/dataset/periods";
 import { fmtDateShort, fmtPct, fmtUnits } from "@/lib/utils/format";
 import type { CapacityExposure, PlanningSituation } from "@/types/situation";

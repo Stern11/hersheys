@@ -13,7 +13,12 @@
  * Pure: no React.
  */
 
-import type { PlanningSituation } from "@/types/situation";
+import type {
+  MaterialRelease,
+  PlanningSituation,
+  SituationOverrides,
+  VolumeCommitment,
+} from "@/types/situation";
 
 export type DecisionKind = "material_order" | "line_capacity" | "production_start" | "representation";
 
@@ -24,6 +29,8 @@ export interface PendingDecision {
   kind: DecisionKind;
   /** Set for decisions the planner can settle here rather than elsewhere. */
   materialId?: string;
+  /** The component's own name, for a material decision. */
+  materialName?: string;
   /** Quantity and unit, for a decision that is an order. */
   quantity?: number;
   uom?: string;
@@ -85,6 +92,7 @@ export function pendingDecisions(
         id: `material:${row.materialId}`,
         kind: "material_order",
         materialId: row.materialId,
+        materialName: row.materialName,
         quantity: row.netRequirement ?? row.requirementBase,
         uom: row.uom,
         released: release !== undefined,
@@ -175,12 +183,7 @@ export function pendingDecisions(
     });
   }
 
-  return out.sort((a, b) => {
-    if (a.date && b.date) return a.date.localeCompare(b.date);
-    if (a.date) return -1;
-    if (b.date) return 1;
-    return 0;
-  });
+  return out.sort(soonestFirst);
 }
 
 /** Components that cannot be committed yet, and the item each is waiting on. */
@@ -195,4 +198,104 @@ export function blockedMaterials(
       reason: r.reason,
       blockedBy: r.blockedByItemName,
     }));
+}
+
+/** Dated before undated; dated in calendar order. */
+function soonestFirst(a: { date?: string }, b: { date?: string }): number {
+  if (a.date && b.date) return a.date.localeCompare(b.date);
+  if (a.date) return -1;
+  if (b.date) return 1;
+  return 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Across every programme (the Decisions page)                         */
+/* ------------------------------------------------------------------ */
+
+type OverridesBySituation = Readonly<Record<string, SituationOverrides | undefined>>;
+
+/** A pending decision, placed in the programme it belongs to. */
+export interface ProgrammeDecision extends PendingDecision {
+  /** Unique across programmes — a decision id is only unique within one. */
+  key: string;
+  situationId: string;
+  situationTitle: string;
+}
+
+/**
+ * Everything still open, across every programme, soonest first.
+ *
+ * A released order has been decided, so it leaves this list for the
+ * committed log. Production start is a milestone rather than a choice; it
+ * stays on each programme's own Decide step, where it frames the rest.
+ */
+export function upcomingDecisions(
+  situations: readonly PlanningSituation[],
+  overridesBySituation: OverridesBySituation
+): ProgrammeDecision[] {
+  const out: ProgrammeDecision[] = [];
+  for (const situation of situations) {
+    const releases = overridesBySituation[situation.id]?.releases ?? {};
+    for (const decision of pendingDecisions(situation, releases)) {
+      if (decision.released || decision.kind === "production_start") continue;
+      out.push({
+        ...decision,
+        key: `${situation.id}:${decision.id}`,
+        situationId: situation.id,
+        situationTitle: situation.title,
+      });
+    }
+  }
+  return out.sort(soonestFirst);
+}
+
+/** The record a planner's "Release" creates — undefined for anything but a dated order. */
+export function releaseFor(decision: PendingDecision, releasedAt: string): MaterialRelease | undefined {
+  if (!decision.materialId || !decision.date) return undefined;
+  return {
+    materialId: decision.materialId,
+    materialName: decision.materialName ?? decision.title,
+    quantity: decision.quantity ?? 0,
+    uom: decision.uom ?? "",
+    decisionDate: decision.date,
+    releasedAt,
+  };
+}
+
+/** Something the planner has put their name to. */
+export type CommittedEntry = {
+  key: string;
+  situationId: string;
+  situationTitle: string;
+  /** When it was recorded — dataset time, never wall-clock. */
+  at: string;
+} & ({ kind: "release"; release: MaterialRelease } | { kind: "volume"; commitment: VolumeCommitment });
+
+/**
+ * Every release and volume commitment, newest first. Overrides left over for
+ * a programme that is not in the current dataset (a different upload) are
+ * skipped rather than shown against a programme the planner cannot open.
+ */
+export function committedLog(
+  situations: readonly PlanningSituation[],
+  overridesBySituation: OverridesBySituation
+): CommittedEntry[] {
+  const out: CommittedEntry[] = [];
+  for (const situation of situations) {
+    const overrides = overridesBySituation[situation.id];
+    const base = { situationId: situation.id, situationTitle: situation.title };
+    for (const release of Object.values(overrides?.releases ?? {})) {
+      out.push({ ...base, key: `${situation.id}:release:${release.materialId}`, at: release.releasedAt, kind: "release", release });
+    }
+    for (const commitment of Object.values(overrides?.commitments ?? {})) {
+      out.push({
+        ...base,
+        key: `${situation.id}:volume:${commitment.candidateId}`,
+        at: commitment.committedAt,
+        kind: "volume",
+        commitment,
+      });
+    }
+  }
+  return out.sort((a, b) => b.at.localeCompare(a.at));
 }

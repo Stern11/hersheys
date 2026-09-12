@@ -19,8 +19,8 @@ import { use } from "react";
 import { usePathname } from "next/navigation";
 import { ArrowLeft, FlaskConical } from "lucide-react";
 import { useSituation } from "@/components/dataset/dataset-provider";
-import { StateBadge } from "@/components/v2/state-badge";
-import { NotAvailable, Page } from "@/components/v2/page";
+import { StateBadge } from "@/components/shared/state-badge";
+import { NotAvailable, Page } from "@/components/shared/page";
 import { cn } from "@/lib/utils/cn";
 import { fmtDateShort } from "@/lib/utils/format";
 

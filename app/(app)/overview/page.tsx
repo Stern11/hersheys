@@ -17,13 +17,13 @@
 import Link from "next/link";
 import { useMemo, type ReactNode } from "react";
 import { useDataset } from "@/components/dataset/dataset-provider";
-import { Label, Page, PageHeader, SectionRule, NotAvailable } from "@/components/v2/page";
-import { BeforeAfterPlan } from "@/components/v2/before-after-plan";
-import { CoverageSparkline } from "@/components/v2/coverage-sparkline";
-import { ReadinessCurveCard } from "@/components/v2/readiness-curve";
+import { Label, Page, PageHeader, SectionRule, NotAvailable } from "@/components/shared/page";
+import { BeforeAfterPlan } from "@/components/overview/before-after-plan";
+import { CoverageSparkline } from "@/components/overview/coverage-sparkline";
+import { ReadinessCurveCard } from "@/components/overview/readiness-curve";
 import { summarizePortfolio, type ExposedLine, type PortfolioSummary } from "@/lib/situations/portfolio";
 import { buildReadinessCurve } from "@/lib/situations/readiness-curve";
-import { WelcomePanel } from "@/components/v2/welcome-panel";
+import { WelcomePanel } from "@/components/overview/welcome-panel";
 import { formatMonthLabel } from "@/lib/dataset/periods";
 import { cn } from "@/lib/utils/cn";
 import { fmtDateShort, fmtHours, fmtMoney, fmtPct, fmtUnits, fmtWeeks } from "@/lib/utils/format";

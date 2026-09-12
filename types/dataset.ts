@@ -7,10 +7,9 @@
  * (V2 §31, §67).
  *
  * These are *input* rows, deliberately close to the shape a planner exports
- * from SAP / Kinaxis / a warehouse. They are projected into the engine-facing
- * types in `types/planning.ts` by `lib/dataset/projections.ts`. Keeping the two
- * separate is what lets the workbook schema evolve without touching the
- * planning engine.
+ * from SAP / Kinaxis / a warehouse. `lib/situations/build.ts` turns them into
+ * `PlanningSituation`s; keeping the two separate is what lets the workbook
+ * schema evolve without touching the planning logic.
  */
 
 import type { DateRange } from "./shared";

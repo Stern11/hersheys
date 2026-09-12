@@ -78,7 +78,7 @@ const OVERDUE: Pick<Zone, "fill" | "opacity"> = { fill: "var(--risk-critical)", 
  * Three possible bands, left to right: already elapsed (neutral), runway
  * still open (positive tint), and past drop-dead (critical tint) — only the
  * ones the data actually supports. Mirrors the same token treatment
- * `components/v2/runway.tsx` already uses for "before today" and "the
+ * `components/workspace/runway.tsx` already uses for "before today" and "the
  * runway band", so a planner reads the same visual language in both places.
  */
 function zonesFor(todayX: number | undefined, dropDeadX: number | undefined): Zone[] {

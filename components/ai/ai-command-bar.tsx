@@ -9,7 +9,7 @@ import { VoiceButton } from "./voice-button";
 import { useDataset } from "@/components/dataset/dataset-provider";
 import { useDatasetStore } from "@/stores/dataset-store";
 import { useSituationScenarioStore } from "@/stores/situation-scenario-store";
-import { respond, type CopilotAction, type CopilotContext, type CopilotReply } from "@/lib/copilot-v2";
+import { respond, type CopilotAction, type CopilotContext, type CopilotReply } from "@/lib/copilot";
 import type { ContributorDisposition } from "@/types/situation";
 
 /**
@@ -20,7 +20,7 @@ import type { ContributorDisposition } from "@/types/situation";
  * `calculateScenario()` over `data/synthetic/*` — a different generation of
  * data. The planner could be looking at a V2 Capacity page and ask the top
  * bar "why is line 03 red" and get back a number from a different dataset
- * entirely. This bar now submits into `lib/copilot-v2/respond.ts`, which is
+ * entirely. This bar now submits into `lib/copilot/respond.ts`, which is
  * grounded only in the `PlanningSituation` objects `useDataset()` already
  * built for the page on screen — a reply here can never disagree with what
  * the page already shows.

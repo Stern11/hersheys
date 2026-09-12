@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Mic, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { isVoiceInputSupported, speechRecognitionCtor, transcriptFromEvent, type SpeechRecognitionLike } from "@/lib/ai-copilot/voice";
+import { isVoiceInputSupported, speechRecognitionCtor, transcriptFromEvent, type SpeechRecognitionLike } from "@/lib/copilot/voice";
 
 /**
  * Voice input — present only where it works.

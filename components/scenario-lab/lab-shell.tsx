@@ -20,7 +20,7 @@ import { useSituationScenarioStore } from "@/stores/situation-scenario-store";
 import { applyScenarioToDataset } from "@/lib/situations/scenario";
 import { buildSituations } from "@/lib/situations/build";
 import { EMPTY_ADJUSTMENTS } from "@/types/situation";
-import { NotAvailable, Page, SectionRule } from "@/components/v2/page";
+import { NotAvailable, Page, SectionRule } from "@/components/shared/page";
 import { ScenarioToolbar } from "./scenario-toolbar";
 import { ControlsVolume } from "./controls-volume";
 import { ControlsAnalogues } from "./controls-analogues";

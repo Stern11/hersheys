@@ -17,8 +17,8 @@
 "use client";
 
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
-import { MaterialStatusBadge } from "@/components/v2/state-badge";
-import { Label } from "@/components/v2/page";
+import { MaterialStatusBadge } from "@/components/shared/state-badge";
+import { Label } from "@/components/shared/page";
 import { materialDetail, type MaterialDetail } from "@/lib/situations/material-detail";
 import { cn } from "@/lib/utils/cn";
 import { fmtDateShort, fmtNum, fmtPct, fmtWeeks } from "@/lib/utils/format";

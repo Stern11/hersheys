@@ -8,8 +8,8 @@
  */
 
 import Link from "next/link";
-import { DataTable, type Column } from "@/components/v2/data-table";
-import { DispositionBadge } from "@/components/v2/state-badge";
+import { DataTable, type Column } from "@/components/shared/data-table";
+import { DispositionBadge } from "@/components/shared/state-badge";
 import type { CandidateItem, PlanningSituation, SituationOverrides } from "@/types/situation";
 import { LOAD_BEARING_DISPOSITIONS } from "@/types/situation";
 import { fmtMoney, fmtUnits } from "@/lib/utils/format";

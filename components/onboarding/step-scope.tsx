@@ -11,7 +11,7 @@
 import { Info, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MetricRow } from "@/components/v2/page";
+import { MetricRow } from "@/components/shared/page";
 import type { PlanningScopePreview } from "@/lib/excel/validate";
 
 function ChipList({ items }: { items: string[] }) {

@@ -13,7 +13,7 @@ import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useDatasetStore } from "@/stores/dataset-store";
 import { useDataset } from "./dataset-provider";
-import { Page, NotAvailable } from "@/components/v2/page";
+import { Page, NotAvailable } from "@/components/shared/page";
 
 export function RequireDataset({ children }: { children: ReactNode }) {
   const router = useRouter();

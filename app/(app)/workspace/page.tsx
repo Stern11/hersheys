@@ -10,8 +10,8 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { useDataset } from "@/components/dataset/dataset-provider";
-import { StateBadge } from "@/components/v2/state-badge";
-import { Page, PageHeader, NotAvailable } from "@/components/v2/page";
+import { StateBadge } from "@/components/shared/state-badge";
+import { Page, PageHeader, NotAvailable } from "@/components/shared/page";
 import { fmtMoney, fmtPct, fmtUnits, fmtWeeks } from "@/lib/utils/format";
 import { fmtDateShort } from "@/lib/utils/format";
 
